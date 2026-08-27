@@ -839,6 +839,7 @@ private: // internal
 	friend FuClassType;
 	friend FuMethod;
 	friend FuMethodGroup;
+	friend FuNamedValue;
 	friend FuParser;
 	friend FuProperty;
 	friend FuRangeType;
@@ -1730,6 +1731,8 @@ protected:
 private: // internal
 	std::shared_ptr<FuExpr> typeExpr;
 	std::shared_ptr<FuExpr> value;
+	void writeTypeAndName(std::ostringstream * w) const;
+	friend FuMethod;
 	friend FuParser;
 	friend FuRangeType;
 	friend FuSema;
@@ -1892,13 +1895,14 @@ public:
 	bool isStatic() const override;
 	bool isAbstractOrVirtual() const;
 	bool isAbstractVirtualOrOverride() const;
-	static std::string_view callTypeToString(FuCallType callType);
 	FuVar * firstParameter() const;
 	int getParametersCount() const;
 	const FuMethod * getDeclaringMethod() const;
 	bool isPure() const;
+	std::string getSignature() const;
 private: // internal
 	FuCallType callType;
+	static std::string_view callTypeToString(FuCallType callType);
 	friend FuClass;
 	friend FuParser;
 	friend FuSema;

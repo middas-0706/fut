@@ -20,7 +20,7 @@
 
 import * as vscode from "vscode";
 import { FuParser, FuProgram, FuSystem, FuSema, FuSemaHost, FuSymbolReferenceVisitor, FuStatement, FuSymbol, FuContainerType, FuEnum, FuClass,
-	FuMember, FuConst, FuVar, FuParameters, FuField, FuCallType, FuMethod, FuCodeDoc } from "./fucheck.js";
+	FuMember, FuConst, FuVar, FuParameters, FuField, FuMethod, FuCodeDoc } from "./fucheck.js";
 
 class VsCodeHost extends FuSemaHost
 {
@@ -153,23 +153,6 @@ class VsCodeSymbolLocator extends VsCodeHost
 		return parser.getFoundDefinition();
 	}
 
-	static #getSignature(method: FuMethod): string
-	{
-		let code = method.callType == FuCallType.NORMAL ? "" : FuMethod.callTypeToString(method.callType) + " ";
-		code = `${code}${method.type} ${method.name}`;
-		if (!method.isStatic() && method.isMutator())
-			code += "!";
-		code += "(";
-		for (let param = method.firstParameter(); param != null;) {
-			code = `${code}${param.type} ${param.name}`;
-			param = param.nextVar();
-			if (param == null)
-				break;
-			code += ", ";
-		}
-		return code + ")";
-	}
-
 	async getHover(document: vscode.TextDocument, position: vscode.Position): Promise<vscode.Hover | null>
 	{
 		const symbol = await this.findSymbol(document, position);
@@ -185,7 +168,7 @@ class VsCodeSymbolLocator extends VsCodeHost
 		else if (symbol instanceof FuVar)
 			code = `(${symbol.parent instanceof FuParameters ? "parameter" : "local variable"}) ${symbol.type} ${code}`;
 		else if (symbol instanceof FuMethod)
-			code = VsCodeSymbolLocator.#getSignature(symbol);
+			code = symbol.getSignature();
 		else if (symbol instanceof FuField)
 			code = `(field) ${symbol.type} ${code}`;
 		else if (symbol instanceof FuMember) // property

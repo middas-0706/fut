@@ -2347,6 +2347,13 @@ bool FuNamedValue::isAssignableStorage() const
 {
 	return dynamic_cast<const FuStorageType *>(this->type.get()) && !dynamic_cast<const FuArrayStorageType *>(this->type.get()) && this->value != nullptr && !dynamic_cast<const FuSymbolReference *>(this->value.get()) && !dynamic_cast<const FuAggregateInitializer *>(this->value.get());
 }
+
+void FuNamedValue::writeTypeAndName(std::ostringstream * w) const
+{
+	*w << this->type->toString();
+	*w << ' ';
+	*w << this->name;
+}
 FuMember::FuMember()
 {
 }
@@ -2540,6 +2547,28 @@ bool FuMethod::isPure() const
 	}
 	const FuReturn * ret;
 	return (ret = dynamic_cast<const FuReturn *>(this->body.get())) && ret->value->isConst(true);
+}
+
+std::string FuMethod::getSignature() const
+{
+	std::ostringstream w;
+	if (this->callType != FuCallType::normal) {
+		w << callTypeToString(this->callType);
+		w << ' ';
+	}
+	writeTypeAndName(&w);
+	if (!isStatic() && isMutator())
+		w << '!';
+	w << '(';
+	for (const FuVar * param = firstParameter(); param != nullptr;) {
+		param->writeTypeAndName(&w);
+		param = param->nextVar();
+		if (param == nullptr)
+			break;
+		w << ", ";
+	}
+	w << ')';
+	return std::string(w.view());
 }
 FuMethodGroup::FuMethodGroup()
 {

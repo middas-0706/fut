@@ -2991,6 +2991,13 @@ export class FuNamedValue extends FuSymbol
 	{
 		return this.type instanceof FuStorageType && !(this.type instanceof FuArrayStorageType) && this.value != null && !(this.value instanceof FuSymbolReference) && !(this.value instanceof FuAggregateInitializer);
 	}
+
+	writeTypeAndName(w)
+	{
+		w.write(String(this.type));
+		w.write(String.fromCharCode(32));
+		w.write(this.name);
+	}
 }
 
 export class FuMember extends FuNamedValue
@@ -3223,6 +3230,28 @@ export class FuMethod extends FuMethodBase
 		}
 		let ret;
 		return (ret = this.body) instanceof FuReturn && ret.value.isConst(true);
+	}
+
+	getSignature()
+	{
+		const w = new StringWriter();
+		if (this.callType != FuCallType.NORMAL) {
+			w.write(FuMethod.callTypeToString(this.callType));
+			w.write(String.fromCharCode(32));
+		}
+		this.writeTypeAndName(w);
+		if (!this.isStatic() && this.isMutator())
+			w.write(String.fromCharCode(33));
+		w.write(String.fromCharCode(40));
+		for (let param = this.firstParameter(); param != null;) {
+			param.writeTypeAndName(w);
+			param = param.nextVar();
+			if (param == null)
+				break;
+			w.write(", ");
+		}
+		w.write(String.fromCharCode(41));
+		return w.toString();
 	}
 }
 

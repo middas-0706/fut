@@ -1227,6 +1227,12 @@ public abstract class FuNamedValue : FuSymbol
 	internal FuExpr#? Value;
 	public bool IsAssignableStorage() => this.Type is FuStorageType && !(this.Type is FuArrayStorageType)
 		&& this.Value != null && !(this.Value is FuSymbolReference) && !(this.Value is FuAggregateInitializer);
+	internal void WriteTypeAndName(StringWriter! w)
+	{
+		w.Write(this.Type);
+		w.WriteChar(' ');
+		w.Write(this.Name);
+	}
 }
 
 public abstract class FuMember : FuNamedValue
@@ -1339,7 +1345,7 @@ public class FuMethod : FuMethodBase
 	public override bool IsStatic() => this.CallType == FuCallType.Static;
 	public bool IsAbstractOrVirtual() => this.CallType == FuCallType.Abstract || this.CallType == FuCallType.Virtual;
 	public bool IsAbstractVirtualOrOverride() => this.CallType == FuCallType.Abstract || this.CallType == FuCallType.Virtual || this.CallType == FuCallType.Override;
-	public static string CallTypeToString(FuCallType callType)
+	internal static string CallTypeToString(FuCallType callType)
 	{
 		switch (callType) {
 		case FuCallType.Static: return "static";
@@ -1384,6 +1390,27 @@ public class FuMethod : FuMethodBase
 			}
 		}
 		return this.Body is FuReturn ret && ret.Value.IsConst(true);
+	}
+	public string() GetSignature()
+	{
+		StringWriter() w;
+		if (this.CallType != FuCallType.Normal) {
+			w.Write(CallTypeToString(this.CallType));
+			w.WriteChar(' ');
+		}
+		WriteTypeAndName(w);
+		if (!IsStatic() && IsMutator())
+			w.WriteChar('!');
+		w.WriteChar('(');
+		for (FuVar? param = FirstParameter(); param != null;) {
+			param.WriteTypeAndName(w);
+			param = param.NextVar();
+			if (param == null)
+				break;
+			w.Write(", ");
+		}
+		w.WriteChar(')');
+		return w.ToString();
 	}
 }
 
