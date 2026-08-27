@@ -15992,6 +15992,10 @@ export class GenCpp extends GenCCpp
 				this.include("regex");
 				this.write("std::cmatch");
 				break;
+			case FuId.JSON_ELEMENT_CLASS:
+				this.hasJsonElement = true;
+				this.write("JsonElement");
+				break;
 			case FuId.LOCK_CLASS:
 				this.include("mutex");
 				this.write("std::recursive_mutex");
@@ -17038,7 +17042,6 @@ export class GenCpp extends GenCCpp
 		case FuId.JSON_ELEMENT_GET_STRING:
 		case FuId.JSON_ELEMENT_GET_DOUBLE:
 		case FuId.JSON_ELEMENT_GET_BOOLEAN:
-			this.hasJsonElement = true;
 			this.include("charconv");
 			this.include("sstream");
 			this.include("string_view");
@@ -17935,6 +17938,8 @@ export class GenCpp extends GenCCpp
 			this.writeLine("\tinline constexpr T &operator|=(T &a, T b) { return (a = a | b); } \\");
 			this.writeLine("\tinline constexpr T &operator^=(T &a, T b) { return (a = a ^ b); }");
 		}
+		if (this.hasJsonElement)
+			this.writeLine("class JsonElement;");
 		this.closeStringWriter();
 		this.closeFile();
 		this.inHeaderFile = false;

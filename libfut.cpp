@@ -15833,6 +15833,10 @@ void GenCpp::writeClassType(const FuClassType * klass)
 			include("regex");
 			write("std::cmatch");
 			break;
+		case FuId::jsonElementClass:
+			this->hasJsonElement = true;
+			write("JsonElement");
+			break;
 		case FuId::lockClass:
 			include("mutex");
 			write("std::recursive_mutex");
@@ -16879,7 +16883,6 @@ void GenCpp::writeCallExpr(const FuType * type, const FuExpr * obj, const FuMeth
 	case FuId::jsonElementGetString:
 	case FuId::jsonElementGetDouble:
 	case FuId::jsonElementGetBoolean:
-		this->hasJsonElement = true;
 		include("charconv");
 		include("sstream");
 		include("string_view");
@@ -17736,6 +17739,8 @@ void GenCpp::writeProgram(const FuProgram * program, std::string_view outputFile
 		writeLine("\tinline constexpr T &operator|=(T &a, T b) { return (a = a | b); } \\");
 		writeLine("\tinline constexpr T &operator^=(T &a, T b) { return (a = a ^ b); }");
 	}
+	if (this->hasJsonElement)
+		writeLine("class JsonElement;");
 	closeStringWriter();
 	closeFile();
 	this->inHeaderFile = false;

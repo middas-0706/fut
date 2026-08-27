@@ -15442,6 +15442,10 @@ namespace Fusion
 					Include("regex");
 					Write("std::cmatch");
 					break;
+				case FuId.JsonElementClass:
+					this.HasJsonElement = true;
+					Write("JsonElement");
+					break;
 				case FuId.LockClass:
 					Include("mutex");
 					Write("std::recursive_mutex");
@@ -16473,7 +16477,6 @@ namespace Fusion
 			case FuId.JsonElementGetString:
 			case FuId.JsonElementGetDouble:
 			case FuId.JsonElementGetBoolean:
-				this.HasJsonElement = true;
 				Include("charconv");
 				Include("sstream");
 				Include("string_view");
@@ -17341,6 +17344,8 @@ namespace Fusion
 				WriteLine("\tinline constexpr T &operator|=(T &a, T b) { return (a = a | b); } \\");
 				WriteLine("\tinline constexpr T &operator^=(T &a, T b) { return (a = a ^ b); }");
 			}
+			if (this.HasJsonElement)
+				WriteLine("class JsonElement;");
 			CloseStringWriter();
 			CloseFile();
 			this.InHeaderFile = false;

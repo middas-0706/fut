@@ -1,5 +1,10 @@
 public static class Test
 {
+	static bool IsFalse(JsonElement json)
+	{
+		return json.IsBoolean() && !json.GetBoolean();
+	}
+
 	public static bool Run()
 	{
 		JsonElement# json = JsonElement.Parse("\"foo\""); //FAIL: cl
@@ -12,7 +17,7 @@ public static class Test
 		if (!json.IsBoolean() || !json.GetBoolean())
 			return false;
 		json = JsonElement.Parse("false");
-		if (!json.IsBoolean() || json.GetBoolean())
+		if (!IsFalse(json))
 			return false;
 		json = JsonElement.Parse("null");
 		if (!json.IsNull())
