@@ -582,6 +582,7 @@ class FuDocInline
 {
 public:
 	virtual ~FuDocInline() = default;
+	virtual std::string toString() const = 0;
 protected:
 	FuDocInline() = default;
 };
@@ -590,6 +591,7 @@ class FuDocText : public FuDocInline
 {
 public:
 	FuDocText() = default;
+	std::string toString() const override;
 private: // internal
 	std::string text;
 	friend FuParser;
@@ -603,6 +605,7 @@ class FuDocCode : public FuDocInline
 {
 public:
 	FuDocCode() = default;
+	std::string toString() const override;
 private: // internal
 	std::string text;
 	friend FuParser;
@@ -616,12 +619,14 @@ class FuDocLine : public FuDocInline
 {
 public:
 	FuDocLine() = default;
+	std::string toString() const override;
 };
 
 class FuDocBlock
 {
 public:
 	virtual ~FuDocBlock() = default;
+	virtual std::string toString() const = 0;
 protected:
 	FuDocBlock() = default;
 };
@@ -630,6 +635,7 @@ class FuDocPara : public FuDocBlock
 {
 public:
 	FuDocPara() = default;
+	std::string toString() const override;
 private: // internal
 	std::vector<std::shared_ptr<FuDocInline>> children;
 	friend FuParser;
@@ -643,6 +649,7 @@ class FuDocList : public FuDocBlock
 {
 public:
 	FuDocList() = default;
+	std::string toString() const override;
 private: // internal
 	std::vector<FuDocPara> items;
 	friend FuParser;
@@ -656,6 +663,7 @@ class FuCodeDoc
 {
 public:
 	FuCodeDoc() = default;
+	std::string toString() const;
 private: // internal
 	FuDocPara summary;
 	std::vector<std::shared_ptr<FuDocBlock>> details;

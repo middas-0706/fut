@@ -1144,6 +1144,51 @@ void FuLexer::expectOrSkip(FuToken expected)
 	}
 }
 
+std::string FuDocText::toString() const
+{
+	return this->text;
+}
+
+std::string FuDocCode::toString() const
+{
+	return std::format("`{}`", this->text);
+}
+
+std::string FuDocLine::toString() const
+{
+	return "\n";
+}
+
+std::string FuDocPara::toString() const
+{
+	std::ostringstream w;
+	for (const std::shared_ptr<FuDocInline> &inline_ : this->children)
+		w << inline_->toString();
+	return std::string(w.view());
+}
+
+std::string FuDocList::toString() const
+{
+	std::ostringstream w;
+	for (const FuDocPara &item : this->items) {
+		w << "* ";
+		w << item.toString();
+		w << '\n';
+	}
+	return std::string(w.view());
+}
+
+std::string FuCodeDoc::toString() const
+{
+	std::ostringstream w;
+	w << this->summary.toString();
+	for (const std::shared_ptr<FuDocBlock> &block : this->details) {
+		w << "\n\n";
+		w << block->toString();
+	}
+	return std::string(w.view());
+}
+
 void FuVisitor::visitOptionalStatement(const FuStatement * statement)
 {
 	if (statement != nullptr)

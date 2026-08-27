@@ -1492,15 +1492,30 @@ export class FuDocInline
 export class FuDocText extends FuDocInline
 {
 	text;
+
+	toString()
+	{
+		return this.text;
+	}
 }
 
 export class FuDocCode extends FuDocInline
 {
 	text;
+
+	toString()
+	{
+		return `\`${this.text}\``;
+	}
 }
 
 export class FuDocLine extends FuDocInline
 {
+
+	toString()
+	{
+		return "\n";
+	}
 }
 
 export class FuDocBlock
@@ -1510,17 +1525,47 @@ export class FuDocBlock
 export class FuDocPara extends FuDocBlock
 {
 	children = [];
+
+	toString()
+	{
+		const w = new StringWriter();
+		for (const inline of this.children)
+			w.write(String(inline));
+		return w.toString();
+	}
 }
 
 export class FuDocList extends FuDocBlock
 {
 	items = [];
+
+	toString()
+	{
+		const w = new StringWriter();
+		for (const item of this.items) {
+			w.write("* ");
+			w.write(String(item));
+			w.write(String.fromCharCode(10));
+		}
+		return w.toString();
+	}
 }
 
 export class FuCodeDoc
 {
 	summary = new FuDocPara();
 	details = [];
+
+	toString()
+	{
+		const w = new StringWriter();
+		w.write(String(this.summary));
+		for (const block of this.details) {
+			w.write("\n\n");
+			w.write(String(block));
+		}
+		return w.toString();
+	}
 }
 
 export class FuVisitor

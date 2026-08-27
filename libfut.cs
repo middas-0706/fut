@@ -1507,16 +1507,22 @@ namespace Fusion
 	{
 
 		internal string Text = null!;
+
+		public override string ToString() => this.Text;
 	}
 
 	public class FuDocCode : FuDocInline
 	{
 
 		internal string Text = null!;
+
+		public override string ToString() => $"`{this.Text}`";
 	}
 
 	public class FuDocLine : FuDocInline
 	{
+
+		public override string ToString() => "\n";
 	}
 
 	public abstract class FuDocBlock
@@ -1527,12 +1533,31 @@ namespace Fusion
 	{
 
 		internal readonly List<FuDocInline> Children = new List<FuDocInline>();
+
+		public override string ToString()
+		{
+			StringWriter w = new StringWriter();
+			foreach (FuDocInline inline in this.Children)
+				w.Write(inline);
+			return w.ToString();
+		}
 	}
 
 	public class FuDocList : FuDocBlock
 	{
 
 		internal readonly List<FuDocPara> Items = new List<FuDocPara>();
+
+		public override string ToString()
+		{
+			StringWriter w = new StringWriter();
+			foreach (FuDocPara item in this.Items) {
+				w.Write("* ");
+				w.Write(item);
+				w.Write('\n');
+			}
+			return w.ToString();
+		}
 	}
 
 	public class FuCodeDoc
@@ -1541,6 +1566,17 @@ namespace Fusion
 		internal readonly FuDocPara Summary = new FuDocPara();
 
 		internal readonly List<FuDocBlock> Details = new List<FuDocBlock>();
+
+		public override string ToString()
+		{
+			StringWriter w = new StringWriter();
+			w.Write(this.Summary);
+			foreach (FuDocBlock block in this.Details) {
+				w.Write("\n\n");
+				w.Write(block);
+			}
+			return w.ToString();
+		}
 	}
 
 	public abstract class FuVisitor

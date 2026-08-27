@@ -1,6 +1,6 @@
 // extension.ts - Visual Studio Code extension
 //
-// Copyright (C) 2023-2024  Piotr Fusik
+// Copyright (C) 2023-2026  Piotr Fusik
 //
 // This file is part of Fusion Transpiler,
 // see https://github.com/fusionlanguage/fut
@@ -20,7 +20,7 @@
 
 import * as vscode from "vscode";
 import { FuParser, FuProgram, FuSystem, FuSema, FuSemaHost, FuSymbolReferenceVisitor, FuStatement, FuSymbol, FuContainerType, FuEnum, FuClass,
-	FuMember, FuConst, FuVar, FuParameters, FuField, FuCallType, FuMethod, FuDocText, FuDocCode, FuDocPara, FuDocList, FuCodeDoc } from "./fucheck.js";
+	FuMember, FuConst, FuVar, FuParameters, FuField, FuCallType, FuMethod, FuCodeDoc } from "./fucheck.js";
 
 class VsCodeHost extends FuSemaHost
 {
@@ -170,24 +170,6 @@ class VsCodeSymbolLocator extends VsCodeHost
 		return code + ")";
 	}
 
-	static #convertDocPara(para: FuDocPara): string
-	{
-		let markdown = "";
-		for (const inline of para.children)
-			markdown += inline instanceof FuDocText ? inline.text
-				: inline instanceof FuDocCode ? `\`${inline.text}\``
-				: "\n";
-		return markdown;
-	}
-
-	static #convertDocList(list: FuDocList): string
-	{
-		let markdown = "";
-		for (const item of list.items)
-			markdown = `${markdown}* ${VsCodeSymbolLocator.#convertDocPara(item)}\n`;
-		return markdown;
-	}
-
 	async getHover(document: vscode.TextDocument, position: vscode.Position): Promise<vscode.Hover | null>
 	{
 		const symbol = await this.findSymbol(document, position);
@@ -209,13 +191,8 @@ class VsCodeSymbolLocator extends VsCodeHost
 		else if (symbol instanceof FuMember) // property
 			code = `${symbol.type} ${code}`;
 		const hover = new vscode.MarkdownString().appendCodeblock(code, "fusion");
-		if (symbol.documentation != null) {
-			const doc: FuCodeDoc = symbol.documentation;
-			let markdown = VsCodeSymbolLocator.#convertDocPara(doc.summary);
-			for (const block of doc.details)
-				markdown = `${markdown}\n\n${block instanceof FuDocList ? VsCodeSymbolLocator.#convertDocList(block) : VsCodeSymbolLocator.#convertDocPara(block)}`;
-			hover.appendMarkdown(markdown);
-		}
+		if (symbol.documentation != null)
+			hover.appendMarkdown((symbol.documentation as FuCodeDoc).toString());
 		return new vscode.Hover(hover);
 	}
 }
