@@ -1,0 +1,102 @@
+// lsp.fu - Language Server Protocol (LSP) server
+//
+// Copyright (C) 2026  Piotr Fusik
+//
+// This file is part of Fusion Transpiler,
+// see https://github.com/fusionlanguage/fut
+//
+// Fusion Transpiler is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Fusion Transpiler is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Fusion Transpiler.  If not, see http://www.gnu.org/licenses/
+
+public abstract class FusionLanguageServer
+{
+	protected abstract string() ReadStdin(int length);
+
+	static int GetInt(JsonElement json) => Math.Truncate(json.GetDouble());
+
+	static void Respond(Dictionary<string(), JsonElement#> request, string resultOrError)
+	{
+		JsonElement idElement = request["id"];
+		string() id = idElement.IsNumber() ? $"{GetInt(idElement)}" : $"\"{idElement.GetString()}\""; // TODO: escape the string?
+		string() content = $"{{ \"jsonrpc\": \"2.0\", \"id\": {id}, {resultOrError} }}";
+		Console.Write($"Content-Length: {Encoding.UTF8.GetByteCount(content)}\r\n\r\n{content}");
+		Console.Out.Flush();
+	}
+
+	static void RespondError(Dictionary<string(), JsonElement#> request, int code, string message)
+	{
+		Respond(request, $"\"error\": {{ \"code\": {code}, \"message\": \"{message}\" }}");
+	}
+
+	void Handle!(Dictionary<string(), JsonElement#> request)
+	{
+		Dictionary<string(), JsonElement#> params = request["params"].GetObject();
+		string method = request["method"].GetString();
+		switch (method) {
+		case "initialize":
+			Respond(request, $"\"result\": {{ \"capabilities\": {{ \"positionEncoding\": \"utf-8\", \"textDocumentSync\": 1, \"hoverProvider\": true }}, \"serverInfo\": {{ \"name\": \"Fusion\", \"version\": \"3.3.7\" }} }}"); // TODO: version
+			break;
+		case "textDocument/didOpen":
+			Dictionary<string(), JsonElement#> textDocument = params["textDocument"].GetObject();
+			// TODO
+			// string uri = textDocument["uri"].GetString();
+			// string text = textDocument["text"].GetString();
+			break;
+		case "textDocument/didChange":
+			Dictionary<string(), JsonElement#> textDocument = params["textDocument"].GetObject();
+			// TODO
+			// string uri = textDocument["uri"].GetString();
+			// string text = params["contentChanges"].GetArray()[0].GetObject()["text"].GetString();
+			break;
+		case "textDocument/hover":
+			Dictionary<string(), JsonElement#> textDocument = params["textDocument"].GetObject();
+			Dictionary<string(), JsonElement#> position = params["position"].GetObject();
+			int line = GetInt(position["line"]);
+			int character = GetInt(position["character"]);
+			// TODO
+			Respond(request, $"\"result\": {{ \"contents\": \"Hello, LSP! Position {line},{character}\" }}");
+			break;
+		default:
+			if (request.ContainsKey("id"))
+				RespondError(request, -32601, "Method not found");
+			break;
+		}
+	}
+
+	public int Serve!()
+	{
+		for (int contentLength = -1;;) {
+			string() header = Console.ReadLine();
+			if (header.Length == 0 || header[header.Length - 1] != '\r') {
+				Console.Error.WriteLine("Missing CR in header");
+				return 1;
+			}
+			if (header.StartsWith("Content-Length: ")) {
+				if (!contentLength.TryParse(header.Substring("Content-Length: ".Length, header.Length - ("Content-Length: ".Length + 1)))) {
+					Console.Error.WriteLine("Invalid Content-Length");
+					return 1;
+				}
+			}
+			else if (header.Length == 1) {
+				if (contentLength < 0) {
+					Console.Error.WriteLine("Missing Content-Length");
+					return 1;
+				}
+				string() content = ReadStdin(contentLength);
+				JsonElement# requestElement = JsonElement.Parse(content);
+				Handle(requestElement.GetObject());
+				contentLength = -1;
+			}
+		}
+	}
+}
