@@ -38,7 +38,7 @@ public abstract class FusionLanguageServer
 		Respond(request, $"\"error\": {{ \"code\": {code}, \"message\": \"{message}\" }}");
 	}
 
-	void Handle!(Dictionary<string(), JsonElement#> request)
+	bool Handle!(Dictionary<string(), JsonElement#> request)
 	{
 		Dictionary<string(), JsonElement#> params = request["params"].GetObject();
 		string method = request["method"].GetString();
@@ -46,6 +46,11 @@ public abstract class FusionLanguageServer
 		case "initialize":
 			Respond(request, $"\"result\": {{ \"capabilities\": {{ \"positionEncoding\": \"utf-8\", \"textDocumentSync\": 1, \"hoverProvider\": true }}, \"serverInfo\": {{ \"name\": \"Fusion\", \"version\": \"3.3.7\" }} }}"); // TODO: version
 			break;
+		case "shutdown":
+			Respond(request, "\"result\": null");
+			break;
+		case "exit":
+			return true;
 		case "textDocument/didOpen":
 			Dictionary<string(), JsonElement#> textDocument = params["textDocument"].GetObject();
 			// TODO
@@ -71,6 +76,7 @@ public abstract class FusionLanguageServer
 				RespondError(request, -32601, "Method not found");
 			break;
 		}
+		return false;
 	}
 
 	public int Serve!()
@@ -94,7 +100,8 @@ public abstract class FusionLanguageServer
 				}
 				string() content = ReadStdin(contentLength);
 				JsonElement# requestElement = JsonElement.Parse(content);
-				Handle(requestElement.GetObject());
+				if (Handle(requestElement.GetObject()))
+					return 0;
 				contentLength = -1;
 			}
 		}
