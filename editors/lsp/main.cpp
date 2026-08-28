@@ -18,17 +18,38 @@
 // You should have received a copy of the GNU General Public License
 // along with Fusion Transpiler.  If not, see http://www.gnu.org/licenses/
 
+#include <chrono>
+#include <cstdlib>
 #include <iostream>
+#include <thread>
 #ifdef _WIN32
 #include <fcntl.h>
 #include <io.h>
+#include <windows.h>
+#else
+#include <signal.h>
 #endif
 
 #include "lsp.hpp"
 
 class CppFusionLanguageServer : public FusionLanguageServer
 {
+	static bool isProcessAlive(int pid)
+	{
+#ifdef _WIN32
+		HANDLE h = OpenProcess(SYNCHRONIZE, FALSE, pid);
+		if (!h)
+			return false;
+		DWORD result = WaitForSingleObject(h, 0);
+		CloseHandle(h);
+		return result == WAIT_TIMEOUT;
+#else
+		return kill(pid, 0) == 0;
+#endif
+	}
+
 protected:
+
 	std::string readStdin(int length) const override
 	{
 		std::string result(length, '\0');
@@ -36,6 +57,16 @@ protected:
 		if (!std::cin)
 			result.clear();
 		return result;
+	}
+
+	void watchClientProcess(int pid) const override
+	{
+		std::thread([pid]() {
+				do
+					std::this_thread::sleep_for(std::chrono::seconds(5));
+				while (isProcessAlive(pid));
+				std::exit(0);
+			}).detach();
 	}
 };
 

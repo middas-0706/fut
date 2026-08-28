@@ -22,6 +22,8 @@ public abstract class FusionLanguageServer
 {
 	protected abstract string() ReadStdin(int length);
 
+	protected abstract void watchClientProcess(int pid);
+
 	static int GetInt(JsonElement json) => Math.Truncate(json.GetDouble());
 
 	static void Respond(Dictionary<string(), JsonElement#> request, string resultOrError)
@@ -45,6 +47,9 @@ public abstract class FusionLanguageServer
 		switch (method) {
 		case "initialize":
 			Respond(request, $"\"result\": {{ \"capabilities\": {{ \"positionEncoding\": \"utf-8\", \"textDocumentSync\": 1, \"hoverProvider\": true }}, \"serverInfo\": {{ \"name\": \"Fusion\", \"version\": \"3.3.7\" }} }}"); // TODO: version
+			JsonElement pid = params["processId"];
+			if (pid.IsNumber())
+				watchClientProcess(GetInt(pid));
 			break;
 		case "shutdown":
 			Respond(request, "\"result\": null");
