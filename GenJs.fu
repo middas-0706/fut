@@ -1226,17 +1226,17 @@ public class GenJsNoModule : GenBase
 		NotSupported(statement, "'lock'");
 	}
 
-	protected override void WriteSwitchCaseCond!(FuSwitch statement, FuExpr value, FuPriority parent)
+	protected override void WriteSwitchCaseCond!(FuExpr switchValue, FuExpr value, FuPriority parent)
 	{
 		switch (value) {
 		case FuSymbolReference symbol when symbol.Symbol is FuClass:
-			WriteIsVar(statement.Value, null, symbol.Symbol, parent); // FIXME: side effect in every if
+			WriteIsVar(switchValue, null, symbol.Symbol, parent); // FIXME: side effect in every if
 			break;
 		case FuVar def:
-			WriteIsVar(statement.Value, parent == FuPriority.CondAnd ? def.Name : null, def.Type, parent); // FIXME: side effect in every if
+			WriteIsVar(switchValue, parent == FuPriority.CondAnd ? def.Name : null, def.Type, parent); // FIXME: side effect in every if
 			break;
 		default:
-			base.WriteSwitchCaseCond(statement, value, parent);
+			base.WriteSwitchCaseCond(switchValue, value, parent);
 			break;
 		}
 	}

@@ -1967,19 +1967,19 @@ public abstract class GenBase : FuVisitor
 			WriteSwitchCase(statement, kase);
 	}
 
-	protected virtual void WriteSwitchCaseCond!(FuSwitch statement, FuExpr value, FuPriority parent)
+	protected virtual void WriteSwitchCaseCond!(FuExpr switchValue, FuExpr value, FuPriority parent)
 	{
 		if (value is FuBinaryExpr when1 && when1.Op == FuToken.When) {
 			if (parent > FuPriority.SelectCond)
 				WriteChar('(');
-			WriteSwitchCaseCond(statement, when1.Left, FuPriority.CondAnd); // FIXME: side effect in every if
+			WriteSwitchCaseCond(switchValue, when1.Left, FuPriority.CondAnd); // FIXME: side effect in every if
 			Write(" && ");
 			when1.Right.Accept(this, FuPriority.CondAnd);
 			if (parent > FuPriority.SelectCond)
 				WriteChar(')');
 		}
 		else
-			WriteEqual(statement.Value, value, parent, false); // FIXME: side effect in every if
+			WriteEqual(switchValue, value, parent, false); // FIXME: side effect in every if
 	}
 
 	protected virtual void WriteIfCaseBody!(List<FuStatement#> body, bool doWhile, FuSwitch statement, FuCase? kase)
@@ -2022,7 +2022,7 @@ public abstract class GenBase : FuVisitor
 			FuPriority parent = kase.Values.Count == 1 ? FuPriority.Argument : FuPriority.CondOr;
 			foreach (FuExpr value in kase.Values) {
 				Write(op);
-				WriteSwitchCaseCond(statement, value, parent);
+				WriteSwitchCaseCond(statement.Value, value, parent);
 				op = " || ";
 			}
 			WriteChar(')');

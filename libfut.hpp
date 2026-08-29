@@ -2674,7 +2674,7 @@ protected:
 	virtual void writeSwitchCaseBody(const std::vector<std::shared_ptr<FuStatement>> * statements);
 	virtual void writeSwitchCase(const FuSwitch * statement, const FuCase * kase);
 	void startSwitch(const FuSwitch * statement);
-	virtual void writeSwitchCaseCond(const FuSwitch * statement, const FuExpr * value, FuPriority parent);
+	virtual void writeSwitchCaseCond(const FuExpr * switchValue, const FuExpr * value, FuPriority parent);
 	virtual void writeIfCaseBody(const std::vector<std::shared_ptr<FuStatement>> * body, bool doWhile, const FuSwitch * statement, const FuCase * kase);
 	void writeSwitchAsIfs(const FuSwitch * statement, bool doWhile);
 	virtual void writeException();
@@ -3137,7 +3137,7 @@ protected:
 	void writeConst(const FuConst * konst) override;
 	bool embedIfWhileIsVar(const FuExpr * expr, bool write) override;
 	void writeStronglyCoerced(const FuType * type, const FuExpr * expr) override;
-	void writeSwitchCaseCond(const FuSwitch * statement, const FuExpr * value, FuPriority parent) override;
+	void writeSwitchCaseCond(const FuExpr * switchValue, const FuExpr * value, FuPriority parent) override;
 	void writeSwitchCaseBody(const std::vector<std::shared_ptr<FuStatement>> * statements) override;
 	void writeException() override;
 	void writeThrowMessage(const FuExpr * expr) override;
@@ -3301,7 +3301,7 @@ protected:
 	void writeAssign(const FuBinaryExpr * expr, FuPriority parent) override;
 	void writeAssert(const FuAssert * statement) override;
 	void writeSwitchCaseTypeVar(const FuExpr * value) override;
-	void writeSwitchCaseCond(const FuSwitch * statement, const FuExpr * value, FuPriority parent) override;
+	void writeSwitchCaseCond(const FuExpr * switchValue, const FuExpr * value, FuPriority parent) override;
 	void writeThrowMessage(const FuExpr * expr) override;
 	void writeEnum(const FuEnum * enu) override;
 	void writeConst(const FuConst * konst) override;
@@ -3472,7 +3472,7 @@ protected:
 	void writeAssertCast(const FuBinaryExpr * expr) override;
 	void writeAssert(const FuAssert * statement) override;
 	void startBreakGoto() override;
-	void writeSwitchCaseCond(const FuSwitch * statement, const FuExpr * value, FuPriority parent) override;
+	void writeSwitchCaseCond(const FuExpr * switchValue, const FuExpr * value, FuPriority parent) override;
 	void writeIfCaseBody(const std::vector<std::shared_ptr<FuStatement>> * body, bool doWhile, const FuSwitch * statement, const FuCase * kase) override;
 	void writeException() override;
 	virtual void startContainerType(const FuContainerType * container);

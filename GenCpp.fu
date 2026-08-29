@@ -1809,22 +1809,22 @@ public class GenCpp : GenCCpp
 		}
 	}
 
-	protected override void WriteSwitchCaseCond!(FuSwitch statement, FuExpr value, FuPriority parent)
+	protected override void WriteSwitchCaseCond!(FuExpr switchValue, FuExpr value, FuPriority parent)
 	{
 		switch (value) {
 		case FuSymbolReference symbol when symbol.Symbol is FuClass:
 			Write("dynamic_cast<const ");
 			Write(symbol.Symbol.Name);
 			Write(" *");
-			WriteGtRawPtr(statement.Value); // FIXME: side effect in every if
+			WriteGtRawPtr(switchValue); // FIXME: side effect in every if
 			break;
 		case FuVar def:
 			if (parent == FuPriority.Argument)
 				WriteType(def.Type, true);
-			WriteIsVar(statement.Value, def, parent); // FIXME: side effect in every if
+			WriteIsVar(switchValue, def, parent); // FIXME: side effect in every if
 			break;
 		default:
-			base.WriteSwitchCaseCond(statement, value, parent);
+			base.WriteSwitchCaseCond(switchValue, value, parent);
 			break;
 		}
 	}

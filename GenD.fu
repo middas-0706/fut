@@ -1460,17 +1460,17 @@ public class GenD : GenCCppD
 		DefineVar(value);
 	}
 
-	protected override void WriteSwitchCaseCond!(FuSwitch statement, FuExpr value, FuPriority parent)
+	protected override void WriteSwitchCaseCond!(FuExpr switchValue, FuExpr value, FuPriority parent)
 	{
 		switch (value) {
 		case FuSymbolReference symbol when symbol.Symbol is FuClass:
-			WriteIsVar(statement.Value, value, parent); // FIXME: side effect in every if
+			WriteIsVar(switchValue, value, parent); // FIXME: side effect in every if
 			break;
 		case FuVar:
-			WriteIsVar(statement.Value, value, parent); // FIXME: side effect in every if
+			WriteIsVar(switchValue, value, parent); // FIXME: side effect in every if
 			break;
 		default:
-			base.WriteSwitchCaseCond(statement, value, parent);
+			base.WriteSwitchCaseCond(switchValue, value, parent);
 			break;
 		}
 	}

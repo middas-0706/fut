@@ -10352,20 +10352,20 @@ void GenBase::startSwitch(const FuSwitch * statement)
 		writeSwitchCase(statement, &kase);
 }
 
-void GenBase::writeSwitchCaseCond(const FuSwitch * statement, const FuExpr * value, FuPriority parent)
+void GenBase::writeSwitchCaseCond(const FuExpr * switchValue, const FuExpr * value, FuPriority parent)
 {
 	const FuBinaryExpr * when1;
 	if ((when1 = dynamic_cast<const FuBinaryExpr *>(value)) && when1->op == FuToken::when) {
 		if (parent > FuPriority::selectCond)
 			writeChar('(');
-		writeSwitchCaseCond(statement, when1->left.get(), FuPriority::condAnd);
+		writeSwitchCaseCond(switchValue, when1->left.get(), FuPriority::condAnd);
 		write(" && ");
 		when1->right->accept(this, FuPriority::condAnd);
 		if (parent > FuPriority::selectCond)
 			writeChar(')');
 	}
 	else
-		writeEqual(statement->value.get(), value, parent, false);
+		writeEqual(switchValue, value, parent, false);
 }
 
 void GenBase::writeIfCaseBody(const std::vector<std::shared_ptr<FuStatement>> * body, bool doWhile, const FuSwitch * statement, const FuCase * kase)
@@ -10409,7 +10409,7 @@ void GenBase::writeSwitchAsIfs(const FuSwitch * statement, bool doWhile)
 		FuPriority parent = std::ssize(kase.values) == 1 ? FuPriority::argument : FuPriority::condOr;
 		for (const std::shared_ptr<FuExpr> &value : kase.values) {
 			write(op);
-			writeSwitchCaseCond(statement, value.get(), parent);
+			writeSwitchCaseCond(statement->value.get(), value.get(), parent);
 			op = " || ";
 		}
 		writeChar(')');
@@ -17417,22 +17417,22 @@ void GenCpp::writeStronglyCoerced(const FuType * type, const FuExpr * expr)
 	}
 }
 
-void GenCpp::writeSwitchCaseCond(const FuSwitch * statement, const FuExpr * value, FuPriority parent)
+void GenCpp::writeSwitchCaseCond(const FuExpr * switchValue, const FuExpr * value, FuPriority parent)
 {
 	const FuSymbolReference * symbol;
 	if ((symbol = dynamic_cast<const FuSymbolReference *>(value)) && dynamic_cast<const FuClass *>(symbol->symbol)) {
 		write("dynamic_cast<const ");
 		write(symbol->symbol->name);
 		write(" *");
-		writeGtRawPtr(statement->value.get());
+		writeGtRawPtr(switchValue);
 	}
 	else if (const FuVar *def = dynamic_cast<const FuVar *>(value)) {
 		if (parent == FuPriority::argument)
 			writeType(def->type.get(), true);
-		writeIsVar(statement->value.get(), def, parent);
+		writeIsVar(switchValue, def, parent);
 	}
 	else
-		GenBase::writeSwitchCaseCond(statement, value, parent);
+		GenBase::writeSwitchCaseCond(switchValue, value, parent);
 }
 
 bool GenCpp::isIsVar(const FuExpr * expr)
@@ -20287,15 +20287,15 @@ void GenD::writeSwitchCaseTypeVar(const FuExpr * value)
 	defineVar(value);
 }
 
-void GenD::writeSwitchCaseCond(const FuSwitch * statement, const FuExpr * value, FuPriority parent)
+void GenD::writeSwitchCaseCond(const FuExpr * switchValue, const FuExpr * value, FuPriority parent)
 {
 	const FuSymbolReference * symbol;
 	if ((symbol = dynamic_cast<const FuSymbolReference *>(value)) && dynamic_cast<const FuClass *>(symbol->symbol))
-		writeIsVar(statement->value.get(), value, parent);
+		writeIsVar(switchValue, value, parent);
 	else if (dynamic_cast<const FuVar *>(value))
-		writeIsVar(statement->value.get(), value, parent);
+		writeIsVar(switchValue, value, parent);
 	else
-		GenBase::writeSwitchCaseCond(statement, value, parent);
+		GenBase::writeSwitchCaseCond(switchValue, value, parent);
 }
 
 void GenD::visitSwitch(const FuSwitch * statement)
@@ -23268,15 +23268,15 @@ void GenJsNoModule::visitLock(const FuLock * statement)
 	notSupported(statement, "'lock'");
 }
 
-void GenJsNoModule::writeSwitchCaseCond(const FuSwitch * statement, const FuExpr * value, FuPriority parent)
+void GenJsNoModule::writeSwitchCaseCond(const FuExpr * switchValue, const FuExpr * value, FuPriority parent)
 {
 	const FuSymbolReference * symbol;
 	if ((symbol = dynamic_cast<const FuSymbolReference *>(value)) && dynamic_cast<const FuClass *>(symbol->symbol))
-		writeIsVar(statement->value.get(), std::string_view(), symbol->symbol, parent);
+		writeIsVar(switchValue, std::string_view(), symbol->symbol, parent);
 	else if (const FuVar *def = dynamic_cast<const FuVar *>(value))
-		writeIsVar(statement->value.get(), parent == FuPriority::condAnd ? def->name : std::string_view(), def->type.get(), parent);
+		writeIsVar(switchValue, parent == FuPriority::condAnd ? def->name : std::string_view(), def->type.get(), parent);
 	else
-		GenBase::writeSwitchCaseCond(statement, value, parent);
+		GenBase::writeSwitchCaseCond(switchValue, value, parent);
 }
 
 void GenJsNoModule::writeIfCaseBody(const std::vector<std::shared_ptr<FuStatement>> * body, bool doWhile, const FuSwitch * statement, const FuCase * kase)
