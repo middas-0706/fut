@@ -9685,6 +9685,14 @@ namespace Fusion
 			}
 		}
 
+		protected void WriteSwitchLabel(FuSwitch statement)
+		{
+			Write("fuswitch");
+			VisitLiteralLong(this.SwitchesWithGoto.Count, FuPriority.Primary);
+			this.SwitchesWithGoto.Add(statement);
+			Write(": ");
+		}
+
 		protected virtual void WriteSwitchCaseTypeVar(FuExpr value)
 		{
 		}
@@ -21644,10 +21652,7 @@ namespace Fusion
 		{
 			if (!statement.IsTypeMatching() && statement.HasWhen()) {
 				if (statement.Cases.Exists(kase => FuSwitch.HasEarlyBreakAndContinue(kase.Body)) || FuSwitch.HasEarlyBreakAndContinue(statement.DefaultBody)) {
-					Write("fuswitch");
-					VisitLiteralLong(this.SwitchesWithGoto.Count, FuPriority.Primary);
-					Write(": ");
-					this.SwitchesWithGoto.Add(statement);
+					WriteSwitchLabel(statement);
 					WriteSwitchAsIfs(statement, false);
 				}
 				else
@@ -23189,10 +23194,7 @@ namespace Fusion
 		{
 			if (statement.IsTypeMatching() || statement.HasWhen()) {
 				if (statement.Cases.Exists(kase => FuSwitch.HasEarlyBreak(kase.Body)) || FuSwitch.HasEarlyBreak(statement.DefaultBody)) {
-					Write("fuswitch");
-					VisitLiteralLong(this.SwitchesWithGoto.Count, FuPriority.Primary);
-					this.SwitchesWithGoto.Add(statement);
-					Write(": ");
+					WriteSwitchLabel(statement);
 					OpenBlock();
 					WriteSwitchAsIfs(statement, false);
 					CloseBlock();

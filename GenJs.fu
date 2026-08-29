@@ -1259,10 +1259,7 @@ public class GenJsNoModule : GenBase
 		if (statement.IsTypeMatching() || statement.HasWhen()) {
 			if (statement.Cases.Any(kase => FuSwitch.HasEarlyBreak(kase.Body))
 			 || FuSwitch.HasEarlyBreak(statement.DefaultBody)) {
-				Write("fuswitch");
-				VisitLiteralLong(this.SwitchesWithGoto.Count, FuPriority.Primary);
-				this.SwitchesWithGoto.Add(statement);
-				Write(": ");
+				WriteSwitchLabel(statement);
 				OpenBlock();
 				WriteSwitchAsIfs(statement, false);
 				CloseBlock();

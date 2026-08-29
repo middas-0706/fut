@@ -10179,6 +10179,14 @@ export class GenBase extends FuVisitor
 		}
 	}
 
+	writeSwitchLabel(statement)
+	{
+		this.write("fuswitch");
+		this.visitLiteralLong(BigInt(this.switchesWithGoto.length), FuPriority.PRIMARY);
+		this.switchesWithGoto.push(statement);
+		this.write(": ");
+	}
+
 	writeSwitchCaseTypeVar(value)
 	{
 	}
@@ -22333,10 +22341,7 @@ export class GenJava extends GenTyped
 	{
 		if (!statement.isTypeMatching() && statement.hasWhen()) {
 			if (statement.cases.some(kase => FuSwitch.hasEarlyBreakAndContinue(kase.body)) || FuSwitch.hasEarlyBreakAndContinue(statement.defaultBody)) {
-				this.write("fuswitch");
-				this.visitLiteralLong(BigInt(this.switchesWithGoto.length), FuPriority.PRIMARY);
-				this.write(": ");
-				this.switchesWithGoto.push(statement);
+				this.writeSwitchLabel(statement);
 				this.writeSwitchAsIfs(statement, false);
 			}
 			else
@@ -23885,10 +23890,7 @@ export class GenJsNoModule extends GenBase
 	{
 		if (statement.isTypeMatching() || statement.hasWhen()) {
 			if (statement.cases.some(kase => FuSwitch.hasEarlyBreak(kase.body)) || FuSwitch.hasEarlyBreak(statement.defaultBody)) {
-				this.write("fuswitch");
-				this.visitLiteralLong(BigInt(this.switchesWithGoto.length), FuPriority.PRIMARY);
-				this.switchesWithGoto.push(statement);
-				this.write(": ");
+				this.writeSwitchLabel(statement);
 				this.openBlock();
 				this.writeSwitchAsIfs(statement, false);
 				this.closeBlock();

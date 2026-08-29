@@ -1338,10 +1338,7 @@ public class GenJava : GenTyped
 		if (!statement.IsTypeMatching() && statement.HasWhen()) {
 			if (statement.Cases.Any(kase => FuSwitch.HasEarlyBreakAndContinue(kase.Body))
 			 || FuSwitch.HasEarlyBreakAndContinue(statement.DefaultBody)) {
-				Write("fuswitch");
-				VisitLiteralLong(this.SwitchesWithGoto.Count, FuPriority.Primary);
-				Write(": ");
-				this.SwitchesWithGoto.Add(statement);
+				WriteSwitchLabel(statement);
 				WriteSwitchAsIfs(statement, false);
 			}
 			else

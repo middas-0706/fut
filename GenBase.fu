@@ -1913,6 +1913,14 @@ public abstract class GenBase : FuVisitor
 		}
 	}
 
+	protected void WriteSwitchLabel!(FuSwitch statement)
+	{
+		Write("fuswitch");
+		VisitLiteralLong(this.SwitchesWithGoto.Count, FuPriority.Primary);
+		this.SwitchesWithGoto.Add(statement);
+		Write(": ");
+	}
+
 	protected virtual void WriteSwitchCaseTypeVar!(FuExpr value)
 	{
 	}

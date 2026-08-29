@@ -10297,6 +10297,14 @@ void GenBase::defineVar(const FuExpr * value)
 	}
 }
 
+void GenBase::writeSwitchLabel(const FuSwitch * statement)
+{
+	write("fuswitch");
+	visitLiteralLong(std::ssize(this->switchesWithGoto), FuPriority::primary);
+	this->switchesWithGoto.push_back(statement);
+	write(": ");
+}
+
 void GenBase::writeSwitchCaseTypeVar(const FuExpr * value)
 {
 }
@@ -21784,10 +21792,7 @@ void GenJava::visitSwitch(const FuSwitch * statement)
 {
 	if (!statement->isTypeMatching() && statement->hasWhen()) {
 		if (std::any_of(statement->cases.begin(), statement->cases.end(), [](const FuCase &kase) { return FuSwitch::hasEarlyBreakAndContinue(&kase.body); }) || FuSwitch::hasEarlyBreakAndContinue(&statement->defaultBody)) {
-			write("fuswitch");
-			visitLiteralLong(std::ssize(this->switchesWithGoto), FuPriority::primary);
-			write(": ");
-			this->switchesWithGoto.push_back(statement);
+			writeSwitchLabel(statement);
 			writeSwitchAsIfs(statement, false);
 		}
 		else
@@ -23292,10 +23297,7 @@ void GenJsNoModule::visitSwitch(const FuSwitch * statement)
 {
 	if (statement->isTypeMatching() || statement->hasWhen()) {
 		if (std::any_of(statement->cases.begin(), statement->cases.end(), [](const FuCase &kase) { return FuSwitch::hasEarlyBreak(&kase.body); }) || FuSwitch::hasEarlyBreak(&statement->defaultBody)) {
-			write("fuswitch");
-			visitLiteralLong(std::ssize(this->switchesWithGoto), FuPriority::primary);
-			this->switchesWithGoto.push_back(statement);
-			write(": ");
+			writeSwitchLabel(statement);
 			openBlock();
 			writeSwitchAsIfs(statement, false);
 			closeBlock();

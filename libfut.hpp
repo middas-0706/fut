@@ -2667,6 +2667,7 @@ protected:
 	virtual bool embedIfWhileIsVar(const FuExpr * expr, bool write);
 	virtual void startIf(const FuExpr * expr);
 	void defineVar(const FuExpr * value);
+	void writeSwitchLabel(const FuSwitch * statement);
 	virtual void writeSwitchCaseTypeVar(const FuExpr * value);
 	virtual void writeSwitchValue(const FuExpr * expr);
 	virtual void writeSwitchCaseValue(const FuSwitch * statement, const FuExpr * value);
