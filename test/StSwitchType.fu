@@ -26,7 +26,7 @@ public static class Test
 {
 	static bool IsCat(Animal? a)
 	{
-		switch (a) { //FAIL: c cl
+		switch (a == null ? null : a) { //FAIL: c cl
 		case null:
 			if (a == null)
 				return false;

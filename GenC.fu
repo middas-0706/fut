@@ -3116,6 +3116,28 @@ public class GenC : GenCCpp
 		}
 	}
 
+	protected override bool NeedsSwitchVar(FuExpr expr)
+	{
+		FuCallExpr? substring = IsStringSubstring(expr);
+		if (substring == null)
+			return base.NeedsSwitchVar(expr);
+		if (substring.Method.Symbol.Id == FuId.StringSubstring && !substring.Method.Left.IsLocalReference())
+			return false;
+		return !substring.Arguments.All(arg => arg.IsConst(true) || arg.IsLocalReference());
+	}
+
+	protected override void WriteSwitchVarCaseCond!(FuExpr value)
+	{
+		if (value.Type is FuStringType) {
+			Include("string.h");
+			Write("strcmp(fuSwitchValue, ");
+			value.Accept(this, FuPriority.Argument);
+			Write(") == 0");
+		}
+		else
+			base.WriteSwitchVarCaseCond(value);
+	}
+
 	protected override void WriteSwitchCaseBody!(List<FuStatement#> statements)
 	{
 		if (statements[0] is FuVar

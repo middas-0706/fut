@@ -1010,7 +1010,7 @@ public class GenJsNoModule : GenBase
 		expr.Left.Accept(this, FuPriority.Assign);
 	}
 
-	void WriteIsVar!(FuExpr expr, string? name, FuSymbol klass, FuPriority parent)
+	void WriteIsVar!(FuExpr? expr, string? name, FuSymbol klass, FuPriority parent)
 	{
 		if (parent > FuPriority.Rel)
 			WriteChar('(');
@@ -1018,11 +1018,11 @@ public class GenJsNoModule : GenBase
 			WriteChar('(');
 			WriteCamelCaseNotKeyword(name);
 			Write(" = ");
-			expr.Accept(this, FuPriority.Argument);
+			WriteExprOrSwitchValue(expr, FuPriority.Argument);
 			WriteChar(')');
 		}
 		else
-			expr.Accept(this, FuPriority.Rel);
+			WriteExprOrSwitchValue(expr, FuPriority.Rel);
 		Write(" instanceof ");
 		Write(klass.Name);
 		if (parent > FuPriority.Rel)
@@ -1226,14 +1226,20 @@ public class GenJsNoModule : GenBase
 		NotSupported(statement, "'lock'");
 	}
 
-	protected override void WriteSwitchCaseCond!(FuExpr switchValue, FuExpr value, FuPriority parent)
+	protected override void WriteSwitchVar!(FuExpr expr)
+	{
+		Write("const fuSwitchValue = ");
+		expr.Accept(this, FuPriority.Argument);
+	}
+
+	protected override void WriteSwitchCaseCond!(FuExpr? switchValue, FuExpr value, FuPriority parent)
 	{
 		switch (value) {
 		case FuSymbolReference symbol when symbol.Symbol is FuClass:
-			WriteIsVar(switchValue, null, symbol.Symbol, parent); // FIXME: side effect in every if
+			WriteIsVar(switchValue, null, symbol.Symbol, parent);
 			break;
 		case FuVar def:
-			WriteIsVar(switchValue, parent == FuPriority.CondAnd ? def.Name : null, def.Type, parent); // FIXME: side effect in every if
+			WriteIsVar(switchValue, parent == FuPriority.CondAnd ? def.Name : null, def.Type, parent);
 			break;
 		default:
 			base.WriteSwitchCaseCond(switchValue, value, parent);

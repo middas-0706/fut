@@ -1967,19 +1967,56 @@ public abstract class GenBase : FuVisitor
 			WriteSwitchCase(statement, kase);
 	}
 
-	protected virtual void WriteSwitchCaseCond!(FuExpr switchValue, FuExpr value, FuPriority parent)
+	protected virtual bool NeedsSwitchVar(FuExpr expr)
+	{
+		switch (expr) {
+		case FuSymbolReference symbol:
+			return symbol.Left != null && !symbol.Left.IsLocalReference();
+		case FuBinaryExpr indexing:
+			return indexing.Op != FuToken.LeftBracket
+				|| !indexing.Left.IsLocalReference()
+				|| !(indexing.Right is FuLiteral || indexing.Right.IsLocalReference());
+		default:
+			return true;
+		}
+	}
+
+	protected virtual void WriteSwitchVar!(FuExpr expr)
+	{
+		StartTemporaryVar(expr.Type);
+		Write("fuSwitchValue = ");
+		expr.Accept(this, FuPriority.Argument);
+	}
+
+	protected virtual void WriteSwitchVarCaseCond!(FuExpr value)
+	{
+		Write("fuSwitchValue == ");
+		value.Accept(this, FuPriority.Equality);
+	}
+
+	protected void WriteExprOrSwitchValue!(FuExpr? expr, FuPriority parent)
+	{
+		if (expr == null)
+			Write("fuSwitchValue");
+		else
+			expr.Accept(this, parent);
+	}
+
+	protected virtual void WriteSwitchCaseCond!(FuExpr? switchValue, FuExpr value, FuPriority parent)
 	{
 		if (value is FuBinaryExpr when1 && when1.Op == FuToken.When) {
 			if (parent > FuPriority.SelectCond)
 				WriteChar('(');
-			WriteSwitchCaseCond(switchValue, when1.Left, FuPriority.CondAnd); // FIXME: side effect in every if
+			WriteSwitchCaseCond(switchValue, when1.Left, FuPriority.CondAnd);
 			Write(" && ");
 			when1.Right.Accept(this, FuPriority.CondAnd);
 			if (parent > FuPriority.SelectCond)
 				WriteChar(')');
 		}
+		else if (switchValue == null)
+			WriteSwitchVarCaseCond(value);
 		else
-			WriteEqual(switchValue, value, parent, false); // FIXME: side effect in every if
+			WriteEqual(switchValue, value, parent, false);
 	}
 
 	protected virtual void WriteIfCaseBody!(List<FuStatement#> body, bool doWhile, FuSwitch statement, FuCase? kase)
@@ -2007,6 +2044,13 @@ public abstract class GenBase : FuVisitor
 
 	protected void WriteSwitchAsIfs!(FuSwitch statement, bool doWhile)
 	{
+		FuExpr? switchValue = statement.Value;
+		if (NeedsSwitchVar(switchValue)) {
+			OpenBlock();
+			WriteSwitchVar(switchValue);
+			WriteCharLine(';');
+			switchValue = null;
+		}
 		foreach (FuCase kase in statement.Cases) {
 			foreach (FuExpr value in kase.Values) {
 				if (value is FuBinaryExpr when1 && when1.Op == FuToken.When) {
@@ -2022,7 +2066,7 @@ public abstract class GenBase : FuVisitor
 			FuPriority parent = kase.Values.Count == 1 ? FuPriority.Argument : FuPriority.CondOr;
 			foreach (FuExpr value in kase.Values) {
 				Write(op);
-				WriteSwitchCaseCond(statement.Value, value, parent);
+				WriteSwitchCaseCond(switchValue, value, parent);
 				op = " || ";
 			}
 			WriteChar(')');
@@ -2033,6 +2077,8 @@ public abstract class GenBase : FuVisitor
 			Write("else");
 			WriteIfCaseBody(statement.DefaultBody, doWhile, statement, null);
 		}
+		if (switchValue == null)
+			CloseBlock();
 	}
 
 	internal override void VisitSwitch!(FuSwitch statement)

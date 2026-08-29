@@ -2,24 +2,25 @@ public static class Test
 {
 	public static bool Run()
 	{
-		string s = "bar";
-		switch (s) {
+		string[1] s;
+		s[0] = "bar";
+		int i = 0;
+		switch (s[i++]) {
 		case "foo":
 		case "quux":
 			return false;
 		case "bar":
-			if (s[0] == 'b')
+			if (s[0][0] == 'b')
 				break;
 			return false;
 		default:
 			return false;
 		}
 
-		int i;
 		for (i = 0; i < 3; i++) {
-			switch (s) {
+			switch (s[0]) {
 			case "bar":
-				if (s[0] == 'X')
+				if (s[0][0] == 'X')
 					break;
 				continue;
 			default:

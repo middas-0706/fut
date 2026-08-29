@@ -24,9 +24,11 @@ class Cow : Animal
 
 public static class Test
 {
+	static Animal Identity(Animal a) => a;
+
 	static bool IsCat(Animal a)
 	{
-		switch (a) { //FAIL: c cl
+		switch (Identity(a)) { //FAIL: c cl
 		case Cow: //FAIL: java 21 --enable-preview
 		case Dog:
 			return false;

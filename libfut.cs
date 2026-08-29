@@ -1704,6 +1704,8 @@ namespace Fusion
 			visitor.VisitExpr(this);
 		}
 
+		public virtual bool IsLocalReference() => false;
+
 		public virtual bool IsReferenceTo(FuSymbol symbol) => false;
 
 		public virtual bool IsNewString(bool substringOffset) => false;
@@ -2086,6 +2088,8 @@ namespace Fusion
 		{
 			visitor.VisitSymbolReference(this, parent);
 		}
+
+		public override bool IsLocalReference() => this.Left == null;
 
 		public override bool IsReferenceTo(FuSymbol symbol) => this.Symbol == symbol;
 
@@ -9739,7 +9743,40 @@ namespace Fusion
 				WriteSwitchCase(statement, kase);
 		}
 
-		protected virtual void WriteSwitchCaseCond(FuExpr switchValue, FuExpr value, FuPriority parent)
+		protected virtual bool NeedsSwitchVar(FuExpr expr)
+		{
+			switch (expr) {
+			case FuSymbolReference symbol:
+				return symbol.Left != null && !symbol.Left!.IsLocalReference();
+			case FuBinaryExpr indexing:
+				return indexing.Op != FuToken.LeftBracket || !indexing.Left.IsLocalReference() || !(indexing.Right is FuLiteral || indexing.Right!.IsLocalReference());
+			default:
+				return true;
+			}
+		}
+
+		protected virtual void WriteSwitchVar(FuExpr expr)
+		{
+			StartTemporaryVar(expr.Type!);
+			Write("fuSwitchValue = ");
+			expr.Accept(this, FuPriority.Argument);
+		}
+
+		protected virtual void WriteSwitchVarCaseCond(FuExpr value)
+		{
+			Write("fuSwitchValue == ");
+			value.Accept(this, FuPriority.Equality);
+		}
+
+		protected void WriteExprOrSwitchValue(FuExpr? expr, FuPriority parent)
+		{
+			if (expr == null)
+				Write("fuSwitchValue");
+			else
+				expr!.Accept(this, parent);
+		}
+
+		protected virtual void WriteSwitchCaseCond(FuExpr? switchValue, FuExpr value, FuPriority parent)
 		{
 			if (value is FuBinaryExpr when1 && when1.Op == FuToken.When) {
 				if (parent > FuPriority.SelectCond)
@@ -9750,8 +9787,10 @@ namespace Fusion
 				if (parent > FuPriority.SelectCond)
 					WriteChar(')');
 			}
+			else if (switchValue == null)
+				WriteSwitchVarCaseCond(value);
 			else
-				WriteEqual(switchValue, value, parent, false);
+				WriteEqual(switchValue!, value, parent, false);
 		}
 
 		protected virtual void WriteIfCaseBody(List<FuStatement> body, bool doWhile, FuSwitch statement, FuCase? kase)
@@ -9779,6 +9818,13 @@ namespace Fusion
 
 		protected void WriteSwitchAsIfs(FuSwitch statement, bool doWhile)
 		{
+			FuExpr? switchValue = statement.Value;
+			if (NeedsSwitchVar(switchValue!)) {
+				OpenBlock();
+				WriteSwitchVar(switchValue!);
+				WriteCharLine(';');
+				switchValue = null;
+			}
 			foreach (FuCase kase in statement.Cases) {
 				foreach (FuExpr value in kase.Values) {
 					if (value is FuBinaryExpr when1 && when1.Op == FuToken.When) {
@@ -9794,7 +9840,7 @@ namespace Fusion
 				FuPriority parent = kase.Values.Count == 1 ? FuPriority.Argument : FuPriority.CondOr;
 				foreach (FuExpr value in kase.Values) {
 					Write(op);
-					WriteSwitchCaseCond(statement.Value, value, parent);
+					WriteSwitchCaseCond(switchValue, value, parent);
 					op = " || ";
 				}
 				WriteChar(')');
@@ -9805,6 +9851,8 @@ namespace Fusion
 				Write("else");
 				WriteIfCaseBody(statement.DefaultBody, doWhile, statement, null);
 			}
+			if (switchValue == null)
+				CloseBlock();
 		}
 
 		internal override void VisitSwitch(FuSwitch statement)
@@ -13772,6 +13820,28 @@ namespace Fusion
 			}
 		}
 
+		protected override bool NeedsSwitchVar(FuExpr expr)
+		{
+			FuCallExpr? substring = IsStringSubstring(expr);
+			if (substring == null)
+				return base.NeedsSwitchVar(expr);
+			if (substring!.Method.Symbol!.Id == FuId.StringSubstring && !substring!.Method.Left!.IsLocalReference())
+				return false;
+			return !substring!.Arguments.TrueForAll(arg => arg.IsConst(true) || arg.IsLocalReference());
+		}
+
+		protected override void WriteSwitchVarCaseCond(FuExpr value)
+		{
+			if (value.Type is FuStringType) {
+				Include("string.h");
+				Write("strcmp(fuSwitchValue, ");
+				value.Accept(this, FuPriority.Argument);
+				Write(") == 0");
+			}
+			else
+				base.WriteSwitchVarCaseCond(value);
+		}
+
 		protected override void WriteSwitchCaseBody(List<FuStatement> statements)
 		{
 			if (statements[0] is FuVar || (statements[0] is FuConst konst && konst.Type is FuArrayStorageType))
@@ -15134,6 +15204,18 @@ namespace Fusion
 
 		protected override void WriteAssert(FuAssert statement)
 		{
+		}
+
+		protected override void WriteSwitchVarCaseCond(FuExpr value)
+		{
+			if (value.Type is FuStringType) {
+				this.StringEquals = true;
+				Write("FuString_Equals(fuSwitchValue, ");
+				value.Accept(this, FuPriority.Argument);
+				WriteChar(')');
+			}
+			else
+				base.WriteSwitchVarCaseCond(value);
 		}
 
 		protected override void WriteSwitchCaseBody(List<FuStatement> statements)
@@ -16761,13 +16843,15 @@ namespace Fusion
 			}
 		}
 
-		void WriteGtRawPtr(FuExpr expr)
+		void WriteGtRawPtr(FuExpr? expr)
 		{
 			Write(">(");
-			if (IsSharedPtr(expr))
-				WritePostfix(expr, ".get()");
+			if (expr == null)
+				Write("fuSwitchValue");
+			else if (IsSharedPtr(expr!))
+				WritePostfix(expr!, ".get()");
 			else
-				expr.Accept(this, FuPriority.Argument);
+				expr!.Accept(this, FuPriority.Argument);
 			WriteChar(')');
 		}
 
@@ -17002,7 +17086,23 @@ namespace Fusion
 			}
 		}
 
-		protected override void WriteSwitchCaseCond(FuExpr switchValue, FuExpr value, FuPriority parent)
+		protected override void WriteSwitchVar(FuExpr expr)
+		{
+			if (expr.Type!.Id == FuId.StringStorageType) {
+				Write("std::string fuSwitchValue{");
+				expr.Accept(this, FuPriority.Argument);
+				WriteChar('}');
+			}
+			else if (IsSharedPtr(expr)) {
+				WriteClassType(expr.Type!.AsClassType());
+				Write(" *fuSwitchValue = ");
+				WritePostfix(expr, ".get()");
+			}
+			else
+				base.WriteSwitchVar(expr);
+		}
+
+		protected override void WriteSwitchCaseCond(FuExpr? switchValue, FuExpr value, FuPriority parent)
 		{
 			switch (value) {
 			case FuSymbolReference symbol when symbol.Symbol is FuClass:
@@ -17014,7 +17114,7 @@ namespace Fusion
 			case FuVar def:
 				if (parent == FuPriority.Argument)
 					WriteType(def.Type!, true);
-				WriteIsVar(switchValue, def, parent);
+				WriteIsVar(switchValue!, def, parent);
 				break;
 			default:
 				base.WriteSwitchCaseCond(switchValue, value, parent);
@@ -19972,7 +20072,7 @@ namespace Fusion
 			base.WriteAssign(expr, parent);
 		}
 
-		void WriteIsVar(FuExpr left, FuExpr right, FuPriority parent)
+		void WriteIsVar(FuExpr? left, FuExpr right, FuPriority parent)
 		{
 			if (parent > FuPriority.Equality)
 				WriteChar('(');
@@ -19981,7 +20081,7 @@ namespace Fusion
 				Write("cast(");
 				Write(klass.Name);
 				Write(") ");
-				left.Accept(this, FuPriority.Primary);
+				WriteExprOrSwitchValue(left, FuPriority.Primary);
 				break;
 			case FuVar def:
 				WriteChar('(');
@@ -19989,7 +20089,7 @@ namespace Fusion
 				Write(" = cast(");
 				Write(def.Type!.Name);
 				Write(") ");
-				left.Accept(this, FuPriority.Primary);
+				WriteExprOrSwitchValue(left, FuPriority.Primary);
 				WriteChar(')');
 				break;
 			default:
@@ -20082,12 +20182,20 @@ namespace Fusion
 			WriteChild(statement.Body);
 		}
 
+		protected override void WriteSwitchVarCaseCond(FuExpr value)
+		{
+			if (value is FuLiteralNull)
+				Write("fuSwitchValue is null");
+			else
+				base.WriteSwitchVarCaseCond(value);
+		}
+
 		protected override void WriteSwitchCaseTypeVar(FuExpr value)
 		{
 			DefineVar(value);
 		}
 
-		protected override void WriteSwitchCaseCond(FuExpr switchValue, FuExpr value, FuPriority parent)
+		protected override void WriteSwitchCaseCond(FuExpr? switchValue, FuExpr value, FuPriority parent)
 		{
 			switch (value) {
 			case FuSymbolReference symbol when symbol.Symbol is FuClass:
@@ -22946,7 +23054,7 @@ namespace Fusion
 			expr.Left.Accept(this, FuPriority.Assign);
 		}
 
-		void WriteIsVar(FuExpr expr, string? name, FuSymbol klass, FuPriority parent)
+		void WriteIsVar(FuExpr? expr, string? name, FuSymbol klass, FuPriority parent)
 		{
 			if (parent > FuPriority.Rel)
 				WriteChar('(');
@@ -22954,11 +23062,11 @@ namespace Fusion
 				WriteChar('(');
 				WriteCamelCaseNotKeyword(name!);
 				Write(" = ");
-				expr.Accept(this, FuPriority.Argument);
+				WriteExprOrSwitchValue(expr, FuPriority.Argument);
 				WriteChar(')');
 			}
 			else
-				expr.Accept(this, FuPriority.Rel);
+				WriteExprOrSwitchValue(expr, FuPriority.Rel);
 			Write(" instanceof ");
 			Write(klass.Name);
 			if (parent > FuPriority.Rel)
@@ -23162,7 +23270,13 @@ namespace Fusion
 			NotSupported(statement, "'lock'");
 		}
 
-		protected override void WriteSwitchCaseCond(FuExpr switchValue, FuExpr value, FuPriority parent)
+		protected override void WriteSwitchVar(FuExpr expr)
+		{
+			Write("const fuSwitchValue = ");
+			expr.Accept(this, FuPriority.Argument);
+		}
+
+		protected override void WriteSwitchCaseCond(FuExpr? switchValue, FuExpr value, FuPriority parent)
 		{
 			switch (value) {
 			case FuSymbolReference symbol when symbol.Symbol is FuClass:

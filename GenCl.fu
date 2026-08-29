@@ -302,6 +302,18 @@ public class GenCl : GenC
 	{
 	}
 
+	protected override void WriteSwitchVarCaseCond!(FuExpr value)
+	{
+		if (value.Type is FuStringType) {
+			this.StringEquals = true;
+			Write("FuString_Equals(fuSwitchValue, ");
+			value.Accept(this, FuPriority.Argument);
+			WriteChar(')');
+		}
+		else
+			base.WriteSwitchVarCaseCond(value);
+	}
+
 	protected override void WriteSwitchCaseBody!(List<FuStatement#> statements)
 	{
 		if (statements.All(statement => statement is FuAssert))

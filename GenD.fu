@@ -1345,7 +1345,7 @@ public class GenD : GenCCppD
 		base.WriteAssign(expr, parent);
 	}
 
-	void WriteIsVar!(FuExpr left, FuExpr right, FuPriority parent)
+	void WriteIsVar!(FuExpr? left, FuExpr right, FuPriority parent)
 	{
 		if (parent > FuPriority.Equality)
 			WriteChar('(');
@@ -1354,7 +1354,7 @@ public class GenD : GenCCppD
 			Write("cast(");
 			Write(klass.Name);
 			Write(") ");
-			left.Accept(this, FuPriority.Primary);
+			WriteExprOrSwitchValue(left, FuPriority.Primary);
 			break;
 		case FuVar def:
 			WriteChar('(');
@@ -1362,7 +1362,7 @@ public class GenD : GenCCppD
 			Write(" = cast(");
 			Write(def.Type.Name);
 			Write(") ");
-			left.Accept(this, FuPriority.Primary);
+			WriteExprOrSwitchValue(left, FuPriority.Primary);
 			WriteChar(')');
 			break;
 		default:
@@ -1455,19 +1455,27 @@ public class GenD : GenCCppD
 		WriteChild(statement.Body);
 	}
 
+	protected override void WriteSwitchVarCaseCond!(FuExpr value)
+	{
+		if (value is FuLiteralNull)
+			Write("fuSwitchValue is null");
+		else
+			base.WriteSwitchVarCaseCond(value);
+	}
+
 	protected override void WriteSwitchCaseTypeVar!(FuExpr value)
 	{
 		DefineVar(value);
 	}
 
-	protected override void WriteSwitchCaseCond!(FuExpr switchValue, FuExpr value, FuPriority parent)
+	protected override void WriteSwitchCaseCond!(FuExpr? switchValue, FuExpr value, FuPriority parent)
 	{
 		switch (value) {
 		case FuSymbolReference symbol when symbol.Symbol is FuClass:
-			WriteIsVar(switchValue, value, parent); // FIXME: side effect in every if
+			WriteIsVar(switchValue, value, parent);
 			break;
 		case FuVar:
-			WriteIsVar(switchValue, value, parent); // FIXME: side effect in every if
+			WriteIsVar(switchValue, value, parent);
 			break;
 		default:
 			base.WriteSwitchCaseCond(switchValue, value, parent);

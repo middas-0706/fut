@@ -1563,10 +1563,12 @@ public class GenCpp : GenCCpp
 		}
 	}
 
-	void WriteGtRawPtr!(FuExpr expr)
+	void WriteGtRawPtr!(FuExpr? expr)
 	{
 		Write(">(");
-		if (IsSharedPtr(expr))
+		if (expr == null)
+			Write("fuSwitchValue");
+		else if (IsSharedPtr(expr))
 			WritePostfix(expr, ".get()");
 		else
 			expr.Accept(this, FuPriority.Argument);
@@ -1582,7 +1584,10 @@ public class GenCpp : GenCCpp
 		if (def.Type is FuDynamicPtrType dynamic) {
 			Write("std::dynamic_pointer_cast<");
 			Write(dynamic.Class.Name);
-			WriteCall(">", expr);
+			if (expr == null)
+				Write(">(fuSwitchValue)");
+			else
+				WriteCall(">", expr);
 		}
 		else {
 			Write("dynamic_cast<");
@@ -1809,14 +1814,30 @@ public class GenCpp : GenCCpp
 		}
 	}
 
-	protected override void WriteSwitchCaseCond!(FuExpr switchValue, FuExpr value, FuPriority parent)
+	protected override void WriteSwitchVar!(FuExpr expr)
+	{
+		if (expr.Type.Id == FuId.StringStorageType) {
+			Write("std::string fuSwitchValue{");
+			expr.Accept(this, FuPriority.Argument);
+			WriteChar('}');
+		}
+		else if (IsSharedPtr(expr)) {
+			WriteClassType(expr.Type.AsClassType());
+			Write(" *fuSwitchValue = ");
+			WritePostfix(expr, ".get()");
+		}
+		else
+			base.WriteSwitchVar(expr);
+	}
+
+	protected override void WriteSwitchCaseCond!(FuExpr? switchValue, FuExpr value, FuPriority parent)
 	{
 		switch (value) {
 		case FuSymbolReference symbol when symbol.Symbol is FuClass:
 			Write("dynamic_cast<const ");
 			Write(symbol.Symbol.Name);
 			Write(" *");
-			WriteGtRawPtr(switchValue); // FIXME: side effect in every if
+			WriteGtRawPtr(switchValue);
 			break;
 		case FuVar def:
 			if (parent == FuPriority.Argument)
