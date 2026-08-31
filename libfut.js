@@ -17441,16 +17441,24 @@ export class GenCpp extends GenCCpp
 		}
 	}
 
-	#writeGtRawPtr(switchVar, expr)
+	#writeGtPtr(switchVar, expr, get)
 	{
 		this.write(">(");
-		if (GenCpp.#isSharedPtr(expr)) {
+		if (get) {
 			this.writeExprOrSwitchValue(switchVar, expr, FuPriority.PRIMARY);
 			this.write(".get()");
 		}
 		else
 			this.writeExprOrSwitchValue(switchVar, expr, FuPriority.ARGUMENT);
 		this.writeChar(41);
+	}
+
+	#writeDynamicCastConstPtr(klass, switchVar, expr)
+	{
+		this.write("dynamic_cast<const ");
+		this.write(klass.symbol.name);
+		this.write(" *");
+		this.#writeGtPtr(switchVar, expr, GenCpp.#isSharedPtr(expr));
 	}
 
 	#writeIsVar(switchVar, expr, def, parent)
@@ -17463,14 +17471,12 @@ export class GenCpp extends GenCCpp
 		if ((dynamic = def.type) instanceof FuDynamicPtrType) {
 			this.write("std::dynamic_pointer_cast<");
 			this.write(dynamic.class.name);
-			this.write(">(");
-			this.writeExprOrSwitchValue(switchVar, expr, FuPriority.ARGUMENT);
-			this.writeChar(41);
+			this.#writeGtPtr(switchVar, expr, false);
 		}
 		else {
 			this.write("dynamic_cast<");
 			this.writeType(def.type, true);
-			this.#writeGtRawPtr(switchVar, expr);
+			this.#writeGtPtr(switchVar, expr, GenCpp.#isSharedPtr(expr));
 		}
 		if (parent > FuPriority.ASSIGN)
 			this.writeChar(41);
@@ -17514,10 +17520,7 @@ export class GenCpp extends GenCCpp
 				const symbol = expr.right;
 				if (parent == FuPriority.SELECT || (parent >= FuPriority.OR && parent <= FuPriority.MUL))
 					this.write("!!");
-				this.write("dynamic_cast<const ");
-				this.write(symbol.symbol.name);
-				this.write(" *");
-				this.#writeGtRawPtr(false, expr.left);
+				this.#writeDynamicCastConstPtr(symbol, false, expr.left);
 				return;
 			}
 			else if (expr.right instanceof FuVar) {
@@ -17723,12 +17726,8 @@ export class GenCpp extends GenCCpp
 	writeSwitchCaseCond(switchVar, switchValue, value, parent)
 	{
 		let symbol;
-		if ((symbol = value) instanceof FuSymbolReference && symbol.symbol instanceof FuClass) {
-			this.write("dynamic_cast<const ");
-			this.write(symbol.symbol.name);
-			this.write(" *");
-			this.#writeGtRawPtr(switchVar, switchValue);
-		}
+		if ((symbol = value) instanceof FuSymbolReference && symbol.symbol instanceof FuClass)
+			this.#writeDynamicCastConstPtr(symbol, switchVar, switchValue);
 		else if (value instanceof FuVar) {
 			const def = value;
 			if (parent == FuPriority.ARGUMENT)

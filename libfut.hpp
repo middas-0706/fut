@@ -3200,7 +3200,8 @@ private:
 	void writeRegexArgument(const FuExpr * expr);
 	void writeMathClampMaxMin(const FuType * type, std::string_view function, const std::vector<std::shared_ptr<FuExpr>> * args);
 	void writeMatchProperty(const FuSymbolReference * expr, std::string_view name);
-	void writeGtRawPtr(bool switchVar, const FuExpr * expr);
+	void writeGtPtr(bool switchVar, const FuExpr * expr, bool get);
+	void writeDynamicCastConstPtr(const FuSymbolReference * klass, bool switchVar, const FuExpr * expr);
 	void writeIsVar(bool switchVar, const FuExpr * expr, const FuVar * def, FuPriority parent);
 	static bool hasLambdaCapture(const FuExpr * expr, const FuLambdaExpr * lambda);
 	static bool isIsVar(const FuExpr * expr);

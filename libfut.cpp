@@ -17276,16 +17276,24 @@ void GenCpp::visitSymbolReference(const FuSymbolReference * expr, FuPriority par
 	}
 }
 
-void GenCpp::writeGtRawPtr(bool switchVar, const FuExpr * expr)
+void GenCpp::writeGtPtr(bool switchVar, const FuExpr * expr, bool get)
 {
 	write(">(");
-	if (isSharedPtr(expr)) {
+	if (get) {
 		writeExprOrSwitchValue(switchVar, expr, FuPriority::primary);
 		write(".get()");
 	}
 	else
 		writeExprOrSwitchValue(switchVar, expr, FuPriority::argument);
 	writeChar(')');
+}
+
+void GenCpp::writeDynamicCastConstPtr(const FuSymbolReference * klass, bool switchVar, const FuExpr * expr)
+{
+	write("dynamic_cast<const ");
+	write(klass->symbol->name);
+	write(" *");
+	writeGtPtr(switchVar, expr, isSharedPtr(expr));
 }
 
 void GenCpp::writeIsVar(bool switchVar, const FuExpr * expr, const FuVar * def, FuPriority parent)
@@ -17297,14 +17305,12 @@ void GenCpp::writeIsVar(bool switchVar, const FuExpr * expr, const FuVar * def, 
 	if (const FuDynamicPtrType *dynamic = dynamic_cast<const FuDynamicPtrType *>(def->type.get())) {
 		write("std::dynamic_pointer_cast<");
 		write(dynamic->class_->name);
-		write(">(");
-		writeExprOrSwitchValue(switchVar, expr, FuPriority::argument);
-		writeChar(')');
+		writeGtPtr(switchVar, expr, false);
 	}
 	else {
 		write("dynamic_cast<");
 		writeType(def->type.get(), true);
-		writeGtRawPtr(switchVar, expr);
+		writeGtPtr(switchVar, expr, isSharedPtr(expr));
 	}
 	if (parent > FuPriority::assign)
 		writeChar(')');
@@ -17351,10 +17357,7 @@ void GenCpp::visitBinaryExpr(const FuBinaryExpr * expr, FuPriority parent)
 		if (const FuSymbolReference *symbol = dynamic_cast<const FuSymbolReference *>(expr->right.get())) {
 			if (parent == FuPriority::select || (parent >= FuPriority::or_ && parent <= FuPriority::mul))
 				write("!!");
-			write("dynamic_cast<const ");
-			write(symbol->symbol->name);
-			write(" *");
-			writeGtRawPtr(false, expr->left.get());
+			writeDynamicCastConstPtr(symbol, false, expr->left.get());
 			return;
 		}
 		else if (const FuVar *def = dynamic_cast<const FuVar *>(expr->right.get())) {
@@ -17541,12 +17544,8 @@ void GenCpp::writeSwitchVar(const FuExpr * expr)
 void GenCpp::writeSwitchCaseCond(bool switchVar, const FuExpr * switchValue, const FuExpr * value, FuPriority parent)
 {
 	const FuSymbolReference * symbol;
-	if ((symbol = dynamic_cast<const FuSymbolReference *>(value)) && dynamic_cast<const FuClass *>(symbol->symbol)) {
-		write("dynamic_cast<const ");
-		write(symbol->symbol->name);
-		write(" *");
-		writeGtRawPtr(switchVar, switchValue);
-	}
+	if ((symbol = dynamic_cast<const FuSymbolReference *>(value)) && dynamic_cast<const FuClass *>(symbol->symbol))
+		writeDynamicCastConstPtr(symbol, switchVar, switchValue);
 	else if (const FuVar *def = dynamic_cast<const FuVar *>(value)) {
 		if (parent == FuPriority::argument)
 			writeType(def->type.get(), true);

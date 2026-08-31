@@ -16842,16 +16842,24 @@ namespace Fusion
 			}
 		}
 
-		void WriteGtRawPtr(bool switchVar, FuExpr expr)
+		void WriteGtPtr(bool switchVar, FuExpr expr, bool get)
 		{
 			Write(">(");
-			if (IsSharedPtr(expr)) {
+			if (get) {
 				WriteExprOrSwitchValue(switchVar, expr, FuPriority.Primary);
 				Write(".get()");
 			}
 			else
 				WriteExprOrSwitchValue(switchVar, expr, FuPriority.Argument);
 			WriteChar(')');
+		}
+
+		void WriteDynamicCastConstPtr(FuSymbolReference klass, bool switchVar, FuExpr expr)
+		{
+			Write("dynamic_cast<const ");
+			Write(klass.Symbol!.Name);
+			Write(" *");
+			WriteGtPtr(switchVar, expr, IsSharedPtr(expr));
 		}
 
 		void WriteIsVar(bool switchVar, FuExpr expr, FuVar def, FuPriority parent)
@@ -16863,14 +16871,12 @@ namespace Fusion
 			if (def.Type is FuDynamicPtrType dynamic) {
 				Write("std::dynamic_pointer_cast<");
 				Write(dynamic.Class.Name);
-				Write(">(");
-				WriteExprOrSwitchValue(switchVar, expr, FuPriority.Argument);
-				WriteChar(')');
+				WriteGtPtr(switchVar, expr, false);
 			}
 			else {
 				Write("dynamic_cast<");
 				WriteType(def.Type!, true);
-				WriteGtRawPtr(switchVar, expr);
+				WriteGtPtr(switchVar, expr, IsSharedPtr(expr));
 			}
 			if (parent > FuPriority.Assign)
 				WriteChar(')');
@@ -16914,10 +16920,7 @@ namespace Fusion
 				case FuSymbolReference symbol:
 					if (parent == FuPriority.Select || (parent >= FuPriority.Or && parent <= FuPriority.Mul))
 						Write("!!");
-					Write("dynamic_cast<const ");
-					Write(symbol.Symbol!.Name);
-					Write(" *");
-					WriteGtRawPtr(false, expr.Left);
+					WriteDynamicCastConstPtr(symbol, false, expr.Left);
 					return;
 				case FuVar def:
 					WriteIsVar(false, expr.Left, def, parent);
@@ -17102,10 +17105,7 @@ namespace Fusion
 		{
 			switch (value) {
 			case FuSymbolReference symbol when symbol.Symbol is FuClass:
-				Write("dynamic_cast<const ");
-				Write(symbol.Symbol!.Name);
-				Write(" *");
-				WriteGtRawPtr(switchVar, switchValue);
+				WriteDynamicCastConstPtr(symbol, switchVar, switchValue);
 				break;
 			case FuVar def:
 				if (parent == FuPriority.Argument)
