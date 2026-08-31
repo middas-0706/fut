@@ -1,0 +1,16 @@
+public static class Test
+{
+	public static bool Run()
+	{
+		string s = "bar";
+		switch (s.Substring(0)) { //FAIL: c cl TODO
+		case "foo":
+		case "bar" when s.Length == 42:
+			return false;
+		case "bar":
+			return true;
+		default:
+			return false;
+		}
+	}
+}

@@ -20860,13 +20860,14 @@ namespace Fusion
 
 		protected override void WriteEqual(FuExpr? left, FuExpr right, FuPriority parent, bool not)
 		{
-			if (left == null)
-				base.WriteEqual(left, right, parent, not);
-			else if ((left!.Type is FuStringType && right.Type!.Id != FuId.NullType) || (right.Type is FuStringType && left!.Type!.Id != FuId.NullType)) {
+			if ((left == null || left!.Type is FuStringType) && right.Type is FuStringType) {
 				if (not)
 					WriteChar('!');
-				WriteMethodCall(left!, "equals", right);
+				WriteExprOrSwitchValue(left == null, left!, FuPriority.Primary);
+				WriteCall(".equals", right);
 			}
+			else if (left == null)
+				base.WriteEqual(left, right, parent, not);
 			else if (IsUnsignedByteIndexing(left!) && right is FuLiteralLong rightLiteral && rightLiteral.Type!.Id == FuId.ByteRange) {
 				if (parent > FuPriority.Equality)
 					WriteChar('(');

@@ -21550,13 +21550,14 @@ export class GenJava extends GenTyped
 
 	writeEqual(left, right, parent, not)
 	{
-		if (left == null)
-			super.writeEqual(left, right, parent, not);
-		else if ((left.type instanceof FuStringType && right.type.id != FuId.NULL_TYPE) || (right.type instanceof FuStringType && left.type.id != FuId.NULL_TYPE)) {
+		if ((left == null || left.type instanceof FuStringType) && right.type instanceof FuStringType) {
 			if (not)
 				this.writeChar(33);
-			this.writeMethodCall(left, "equals", right);
+			this.writeExprOrSwitchValue(left == null, left, FuPriority.PRIMARY);
+			this.writeCall(".equals", right);
 		}
+		else if (left == null)
+			super.writeEqual(left, right, parent, not);
 		else {
 			let rightLiteral;
 			if (GenJava.#isUnsignedByteIndexing(left) && (rightLiteral = right) instanceof FuLiteralLong && rightLiteral.type.id == FuId.BYTE_RANGE) {

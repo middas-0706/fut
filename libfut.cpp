@@ -21003,13 +21003,14 @@ bool GenJava::isCollectionIndexing(const FuExpr * expr)
 
 void GenJava::writeEqual(const FuExpr * left, const FuExpr * right, FuPriority parent, bool not_)
 {
-	if (left == nullptr)
-		GenBase::writeEqual(left, right, parent, not_);
-	else if ((dynamic_cast<const FuStringType *>(left->type.get()) && right->type->id != FuId::nullType) || (dynamic_cast<const FuStringType *>(right->type.get()) && left->type->id != FuId::nullType)) {
+	if ((left == nullptr || dynamic_cast<const FuStringType *>(left->type.get())) && dynamic_cast<const FuStringType *>(right->type.get())) {
 		if (not_)
 			writeChar('!');
-		writeMethodCall(left, "equals", right);
+		writeExprOrSwitchValue(left == nullptr, left, FuPriority::primary);
+		writeCall(".equals", right);
 	}
+	else if (left == nullptr)
+		GenBase::writeEqual(left, right, parent, not_);
 	else {
 		const FuLiteralLong * rightLiteral;
 		if (isUnsignedByteIndexing(left) && (rightLiteral = dynamic_cast<const FuLiteralLong *>(right)) && rightLiteral->type->id == FuId::byteRange) {
