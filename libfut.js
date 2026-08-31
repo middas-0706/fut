@@ -21550,7 +21550,9 @@ export class GenJava extends GenTyped
 
 	writeEqual(left, right, parent, not)
 	{
-		if ((left.type instanceof FuStringType && right.type.id != FuId.NULL_TYPE) || (right.type instanceof FuStringType && left.type.id != FuId.NULL_TYPE)) {
+		if (left == null)
+			super.writeEqual(left, right, parent, not);
+		else if ((left.type instanceof FuStringType && right.type.id != FuId.NULL_TYPE) || (right.type instanceof FuStringType && left.type.id != FuId.NULL_TYPE)) {
 			if (not)
 				this.writeChar(33);
 			this.writeMethodCall(left, "equals", right);
