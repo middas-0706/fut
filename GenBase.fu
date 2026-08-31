@@ -1090,18 +1090,21 @@ public abstract class GenBase : FuVisitor
 		expr.Accept(this, FuPriority.Equality);
 	}
 
-	protected void WriteEqualExpr!(FuExpr left, FuExpr right, FuPriority parent, string op)
+	protected void WriteEqualExpr!(FuExpr? left, FuExpr right, FuPriority parent, string op)
 	{
 		if (parent > FuPriority.CondAnd)
 			WriteChar('(');
-		WriteEqualOperand(left, right);
+		if (left == null)
+			Write("fuSwitchValue");
+		else
+			WriteEqualOperand(left, right);
 		Write(op);
 		WriteEqualOperand(right, left);
 		if (parent > FuPriority.CondAnd)
 			WriteChar(')');
 	}
 
-	protected virtual void WriteEqual!(FuExpr left, FuExpr right, FuPriority parent, bool not)
+	protected virtual void WriteEqual!(FuExpr? left, FuExpr right, FuPriority parent, bool not)
 	{
 		WriteEqualExpr(left, right, parent, GetEqOp(not));
 	}
@@ -1988,12 +1991,6 @@ public abstract class GenBase : FuVisitor
 		expr.Accept(this, FuPriority.Argument);
 	}
 
-	protected virtual void WriteSwitchVarCaseCond!(FuExpr value)
-	{
-		Write("fuSwitchValue == ");
-		value.Accept(this, FuPriority.Equality);
-	}
-
 	protected void WriteExprOrSwitchValue!(bool switchVar, FuExpr expr, FuPriority parent)
 	{
 		if (switchVar)
@@ -2013,10 +2010,8 @@ public abstract class GenBase : FuVisitor
 			if (parent > FuPriority.SelectCond)
 				WriteChar(')');
 		}
-		else if (switchVar)
-			WriteSwitchVarCaseCond(value);
 		else
-			WriteEqual(switchValue, value, parent, false);
+			WriteEqual(switchVar ? null : switchValue, value, parent, false);
 	}
 
 	protected virtual void WriteIfCaseBody!(List<FuStatement#> body, bool doWhile, FuSwitch statement, FuCase? kase)

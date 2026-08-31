@@ -9513,7 +9513,10 @@ void GenBase::writeEqualExpr(const FuExpr * left, const FuExpr * right, FuPriori
 {
 	if (parent > FuPriority::condAnd)
 		writeChar('(');
-	writeEqualOperand(left, right);
+	if (left == nullptr)
+		write("fuSwitchValue");
+	else
+		writeEqualOperand(left, right);
 	write(op);
 	writeEqualOperand(right, left);
 	if (parent > FuPriority::condAnd)
@@ -10394,12 +10397,6 @@ void GenBase::writeSwitchVar(const FuExpr * expr)
 	expr->accept(this, FuPriority::argument);
 }
 
-void GenBase::writeSwitchVarCaseCond(const FuExpr * value)
-{
-	write("fuSwitchValue == ");
-	value->accept(this, FuPriority::equality);
-}
-
 void GenBase::writeExprOrSwitchValue(bool switchVar, const FuExpr * expr, FuPriority parent)
 {
 	if (switchVar)
@@ -10420,10 +10417,8 @@ void GenBase::writeSwitchCaseCond(bool switchVar, const FuExpr * switchValue, co
 		if (parent > FuPriority::selectCond)
 			writeChar(')');
 	}
-	else if (switchVar)
-		writeSwitchVarCaseCond(value);
 	else
-		writeEqual(switchValue, value, parent, false);
+		writeEqual(switchVar ? nullptr : switchValue, value, parent, false);
 }
 
 void GenBase::writeIfCaseBody(const std::vector<std::shared_ptr<FuStatement>> * body, bool doWhile, const FuSwitch * statement, const FuCase * kase)
@@ -11164,7 +11159,7 @@ void GenCCpp::writeEqual(const FuExpr * left, const FuExpr * right, FuPriority p
 {
 	const FuClassType * leftClass;
 	const FuClassType * rightClass;
-	if ((leftClass = dynamic_cast<const FuClassType *>(left->type.get())) && (rightClass = dynamic_cast<const FuClassType *>(right->type.get())) && leftClass->class_->id != FuId::stringClass) {
+	if (left != nullptr && (leftClass = dynamic_cast<const FuClassType *>(left->type.get())) && (rightClass = dynamic_cast<const FuClassType *>(right->type.get())) && leftClass->class_->id != FuId::stringClass) {
 		std::shared_ptr<FuType> coercedType;
 		if (leftClass->isAssignableFrom(rightClass))
 			coercedType = left->type;
@@ -12858,12 +12853,22 @@ void GenC::writeSubstringEqual(const FuCallExpr * call, std::string_view literal
 		writeChar(')');
 }
 
+void GenC::writeStrCmpArguments(const FuExpr * left, const FuExpr * right)
+{
+	writeChar('(');
+	writeExprOrSwitchValue(left == nullptr, left, FuPriority::argument);
+	write(", ");
+	right->accept(this, FuPriority::argument);
+	writeChar(')');
+}
+
 void GenC::writeEqualStringInternal(const FuExpr * left, const FuExpr * right, FuPriority parent, bool not_)
 {
 	if (parent > FuPriority::equality)
 		writeChar('(');
 	include("string.h");
-	writeCall("strcmp", left, right);
+	write("strcmp");
+	writeStrCmpArguments(left, right);
 	write(getEqOp(not_));
 	writeChar('0');
 	if (parent > FuPriority::equality)
@@ -12872,46 +12877,48 @@ void GenC::writeEqualStringInternal(const FuExpr * left, const FuExpr * right, F
 
 void GenC::writeEqual(const FuExpr * left, const FuExpr * right, FuPriority parent, bool not_)
 {
-	if (dynamic_cast<const FuStringType *>(left->type.get()) && dynamic_cast<const FuStringType *>(right->type.get())) {
-		const FuCallExpr * call = isStringSubstring(left);
-		const FuLiteralString * literal;
-		if (call != nullptr && (literal = dynamic_cast<const FuLiteralString *>(right))) {
-			const FuExpr * lengthExpr = getStringSubstringLength(call);
-			int rightLength = literal->getAsciiLength();
-			if (rightLength >= 0) {
-				std::string_view rightValue = literal->value;
-				if (const FuLiteralLong *leftLength = dynamic_cast<const FuLiteralLong *>(lengthExpr)) {
-					if (leftLength->value != rightLength)
-						notYet(left, "String comparison with unmatched length");
-					writeSubstringEqual(call, rightValue, parent, not_);
-				}
-				else if (not_) {
-					if (parent > FuPriority::condOr)
-						writeChar('(');
-					lengthExpr->accept(this, FuPriority::equality);
-					write(" != ");
-					visitLiteralLong(rightLength, FuPriority::equality);
-					if (rightLength > 0) {
-						write(" || ");
-						writeSubstringEqual(call, rightValue, FuPriority::condOr, true);
+	if ((left == nullptr || dynamic_cast<const FuStringType *>(left->type.get())) && dynamic_cast<const FuStringType *>(right->type.get())) {
+		if (left != nullptr) {
+			const FuCallExpr * call = isStringSubstring(left);
+			const FuLiteralString * literal;
+			if (call != nullptr && (literal = dynamic_cast<const FuLiteralString *>(right))) {
+				const FuExpr * lengthExpr = getStringSubstringLength(call);
+				int rightLength = literal->getAsciiLength();
+				if (rightLength >= 0) {
+					std::string_view rightValue = literal->value;
+					if (const FuLiteralLong *leftLength = dynamic_cast<const FuLiteralLong *>(lengthExpr)) {
+						if (leftLength->value != rightLength)
+							notYet(left, "String comparison with unmatched length");
+						writeSubstringEqual(call, rightValue, parent, not_);
 					}
-					if (parent > FuPriority::condOr)
-						writeChar(')');
-				}
-				else {
-					if (parent > FuPriority::condAnd || parent == FuPriority::condOr)
-						writeChar('(');
-					lengthExpr->accept(this, FuPriority::equality);
-					write(" == ");
-					visitLiteralLong(rightLength, FuPriority::equality);
-					if (rightLength > 0) {
-						write(" && ");
-						writeSubstringEqual(call, rightValue, FuPriority::condAnd, false);
+					else if (not_) {
+						if (parent > FuPriority::condOr)
+							writeChar('(');
+						lengthExpr->accept(this, FuPriority::equality);
+						write(" != ");
+						visitLiteralLong(rightLength, FuPriority::equality);
+						if (rightLength > 0) {
+							write(" || ");
+							writeSubstringEqual(call, rightValue, FuPriority::condOr, true);
+						}
+						if (parent > FuPriority::condOr)
+							writeChar(')');
 					}
-					if (parent > FuPriority::condAnd || parent == FuPriority::condOr)
-						writeChar(')');
+					else {
+						if (parent > FuPriority::condAnd || parent == FuPriority::condOr)
+							writeChar('(');
+						lengthExpr->accept(this, FuPriority::equality);
+						write(" == ");
+						visitLiteralLong(rightLength, FuPriority::equality);
+						if (rightLength > 0) {
+							write(" && ");
+							writeSubstringEqual(call, rightValue, FuPriority::condAnd, false);
+						}
+						if (parent > FuPriority::condAnd || parent == FuPriority::condOr)
+							writeChar(')');
+					}
+					return;
 				}
-				return;
 			}
 		}
 		writeEqualStringInternal(left, right, parent, not_);
@@ -14379,18 +14386,6 @@ bool GenC::needsSwitchVar(const FuExpr * expr) const
 	return !std::all_of(substring->arguments.begin(), substring->arguments.end(), [](const std::shared_ptr<FuExpr> &arg) { return arg->isConst(true) || arg->isLocalReference(); });
 }
 
-void GenC::writeSwitchVarCaseCond(const FuExpr * value)
-{
-	if (dynamic_cast<const FuStringType *>(value->type.get())) {
-		include("string.h");
-		write("strcmp(fuSwitchValue, ");
-		value->accept(this, FuPriority::argument);
-		write(") == 0");
-	}
-	else
-		GenBase::writeSwitchVarCaseCond(value);
-}
-
 void GenC::writeSwitchCaseBody(const std::vector<std::shared_ptr<FuStatement>> * statements)
 {
 	const FuConst * konst;
@@ -15591,7 +15586,8 @@ void GenCl::writeEqualStringInternal(const FuExpr * left, const FuExpr * right, 
 	this->stringEquals = true;
 	if (not_)
 		writeChar('!');
-	writeCall("FuString_Equals", left, right);
+	write("FuString_Equals");
+	writeStrCmpArguments(left, right);
 }
 
 void GenCl::writeStringLength(const FuExpr * expr)
@@ -15740,18 +15736,6 @@ void GenCl::writeCallExpr(const FuType * type, const FuExpr * obj, const FuMetho
 
 void GenCl::writeAssert(const FuAssert * statement)
 {
-}
-
-void GenCl::writeSwitchVarCaseCond(const FuExpr * value)
-{
-	if (dynamic_cast<const FuStringType *>(value->type.get())) {
-		this->stringEquals = true;
-		write("FuString_Equals(fuSwitchValue, ");
-		value->accept(this, FuPriority::argument);
-		writeChar(')');
-	}
-	else
-		GenC::writeSwitchVarCaseCond(value);
 }
 
 void GenCl::writeSwitchCaseBody(const std::vector<std::shared_ptr<FuStatement>> * statements)
@@ -16172,12 +16156,12 @@ bool GenCpp::needStringPtrData(const FuExpr * expr)
 
 void GenCpp::writeEqual(const FuExpr * left, const FuExpr * right, FuPriority parent, bool not_)
 {
-	if (needStringPtrData(left) && right->type->id == FuId::nullType) {
+	if (left != nullptr && needStringPtrData(left) && right->type->id == FuId::nullType) {
 		writePostfix(left, ".data()");
 		write(getEqOp(not_));
 		write("nullptr");
 	}
-	else if (left->type->id == FuId::nullType && needStringPtrData(right)) {
+	else if (left != nullptr && left->type->id == FuId::nullType && needStringPtrData(right)) {
 		write("nullptr");
 		write(getEqOp(not_));
 		writePostfix(right, ".data()");
@@ -20263,7 +20247,7 @@ bool GenD::isIsComparable(const FuExpr * expr)
 
 void GenD::writeEqual(const FuExpr * left, const FuExpr * right, FuPriority parent, bool not_)
 {
-	if (isIsComparable(left) || isIsComparable(right))
+	if ((left != nullptr && isIsComparable(left)) || isIsComparable(right))
 		writeEqualExpr(left, right, parent, not_ ? " !is " : " is ");
 	else
 		GenBase::writeEqual(left, right, parent, not_);
@@ -20400,14 +20384,6 @@ void GenD::visitLock(const FuLock * statement)
 {
 	writeCall("synchronized ", statement->lock.get());
 	writeChild(statement->body.get());
-}
-
-void GenD::writeSwitchVarCaseCond(const FuExpr * value)
-{
-	if (dynamic_cast<const FuLiteralNull *>(value))
-		write("fuSwitchValue is null");
-	else
-		GenBase::writeSwitchVarCaseCond(value);
 }
 
 void GenD::writeSwitchCaseTypeVar(const FuExpr * value)

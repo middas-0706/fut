@@ -2678,7 +2678,6 @@ protected:
 	void startSwitch(const FuSwitch * statement);
 	virtual bool needsSwitchVar(const FuExpr * expr) const;
 	virtual void writeSwitchVar(const FuExpr * expr);
-	virtual void writeSwitchVarCaseCond(const FuExpr * value);
 	void writeExprOrSwitchValue(bool switchVar, const FuExpr * expr, FuPriority parent);
 	virtual void writeSwitchCaseCond(bool switchVar, const FuExpr * switchValue, const FuExpr * value, FuPriority parent);
 	virtual void writeIfCaseBody(const std::vector<std::shared_ptr<FuStatement>> * body, bool doWhile, const FuSwitch * statement, const FuCase * kase);
@@ -2908,6 +2907,7 @@ protected:
 	void writeArrayPtr(const FuExpr * expr, FuPriority parent) override;
 	void writeCoercedInternal(const FuType * type, const FuExpr * expr, FuPriority parent) override;
 	virtual void writeSubstringEqual(const FuCallExpr * call, std::string_view literal, FuPriority parent, bool not_);
+	void writeStrCmpArguments(const FuExpr * left, const FuExpr * right);
 	virtual void writeEqualStringInternal(const FuExpr * left, const FuExpr * right, FuPriority parent, bool not_);
 	void writeEqual(const FuExpr * left, const FuExpr * right, FuPriority parent, bool not_) override;
 	void writeStringLength(const FuExpr * expr) override;
@@ -2921,7 +2921,6 @@ protected:
 	void cleanupBlock(const FuBlock * statement) override;
 	void startIf(const FuExpr * expr) override;
 	bool needsSwitchVar(const FuExpr * expr) const override;
-	void writeSwitchVarCaseCond(const FuExpr * value) override;
 	void writeSwitchCaseBody(const std::vector<std::shared_ptr<FuStatement>> * statements) override;
 	void writeStatements(const std::vector<std::shared_ptr<FuStatement>> * statements) override;
 	void writeEnum(const FuEnum * enu) override;
@@ -3099,7 +3098,6 @@ protected:
 	void writeStringLength(const FuExpr * expr) override;
 	void writeCallExpr(const FuType * type, const FuExpr * obj, const FuMethod * method, const std::vector<std::shared_ptr<FuExpr>> * args, FuPriority parent) override;
 	void writeAssert(const FuAssert * statement) override;
-	void writeSwitchVarCaseCond(const FuExpr * value) override;
 	void writeSwitchCaseBody(const std::vector<std::shared_ptr<FuStatement>> * statements) override;
 private: // internal
 	void visitInterpolatedString(const FuInterpolatedString * expr, FuPriority parent) override;
@@ -3311,7 +3309,6 @@ protected:
 	void writeEqual(const FuExpr * left, const FuExpr * right, FuPriority parent, bool not_) override;
 	void writeAssign(const FuBinaryExpr * expr, FuPriority parent) override;
 	void writeAssert(const FuAssert * statement) override;
-	void writeSwitchVarCaseCond(const FuExpr * value) override;
 	void writeSwitchCaseTypeVar(const FuExpr * value) override;
 	void writeSwitchCaseCond(bool switchVar, const FuExpr * switchValue, const FuExpr * value, FuPriority parent) override;
 	void writeThrowMessage(const FuExpr * expr) override;

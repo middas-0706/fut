@@ -110,7 +110,7 @@ public abstract class GenPySwift : GenBase
 
 	protected abstract string GetReferenceEqOp(bool not);
 
-	protected override void WriteEqual!(FuExpr left, FuExpr right, FuPriority parent, bool not)
+	protected override void WriteEqual!(FuExpr? left, FuExpr right, FuPriority parent, bool not)
 	{
 		if (IsPtr(left) || IsPtr(right))
 			WriteEqualExpr(left, right, parent, GetReferenceEqOp(not));

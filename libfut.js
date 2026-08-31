@@ -9361,7 +9361,10 @@ export class GenBase extends FuVisitor
 	{
 		if (parent > FuPriority.COND_AND)
 			this.writeChar(40);
-		this.writeEqualOperand(left, right);
+		if (left == null)
+			this.write("fuSwitchValue");
+		else
+			this.writeEqualOperand(left, right);
 		this.write(op);
 		this.writeEqualOperand(right, left);
 		if (parent > FuPriority.COND_AND)
@@ -10280,12 +10283,6 @@ export class GenBase extends FuVisitor
 		expr.accept(this, FuPriority.ARGUMENT);
 	}
 
-	writeSwitchVarCaseCond(value)
-	{
-		this.write("fuSwitchValue == ");
-		value.accept(this, FuPriority.EQUALITY);
-	}
-
 	writeExprOrSwitchValue(switchVar, expr, parent)
 	{
 		if (switchVar)
@@ -10306,10 +10303,8 @@ export class GenBase extends FuVisitor
 			if (parent > FuPriority.SELECT_COND)
 				this.writeChar(41);
 		}
-		else if (switchVar)
-			this.writeSwitchVarCaseCond(value);
 		else
-			this.writeEqual(switchValue, value, parent, false);
+			this.writeEqual(switchVar ? null : switchValue, value, parent, false);
 	}
 
 	writeIfCaseBody(body, doWhile, statement, kase)
@@ -11081,7 +11076,7 @@ export class GenCCpp extends GenCCppD
 	{
 		let leftClass;
 		let rightClass;
-		if ((leftClass = left.type) instanceof FuClassType && (rightClass = right.type) instanceof FuClassType && leftClass.class.id != FuId.STRING_CLASS) {
+		if (left != null && (leftClass = left.type) instanceof FuClassType && (rightClass = right.type) instanceof FuClassType && leftClass.class.id != FuId.STRING_CLASS) {
 			let coercedType;
 			if (leftClass.isAssignableFrom(rightClass))
 				coercedType = left.type;
@@ -12891,12 +12886,22 @@ export class GenC extends GenCCpp
 			this.writeChar(41);
 	}
 
+	writeStrCmpArguments(left, right)
+	{
+		this.writeChar(40);
+		this.writeExprOrSwitchValue(left == null, left, FuPriority.ARGUMENT);
+		this.write(", ");
+		right.accept(this, FuPriority.ARGUMENT);
+		this.writeChar(41);
+	}
+
 	writeEqualStringInternal(left, right, parent, not)
 	{
 		if (parent > FuPriority.EQUALITY)
 			this.writeChar(40);
 		this.include("string.h");
-		this.writeCall("strcmp", left, right);
+		this.write("strcmp");
+		this.writeStrCmpArguments(left, right);
 		this.write(GenC.getEqOp(not));
 		this.writeChar(48);
 		if (parent > FuPriority.EQUALITY)
@@ -12905,47 +12910,49 @@ export class GenC extends GenCCpp
 
 	writeEqual(left, right, parent, not)
 	{
-		if (left.type instanceof FuStringType && right.type instanceof FuStringType) {
-			let call = GenC.isStringSubstring(left);
-			let literal;
-			if (call != null && (literal = right) instanceof FuLiteralString) {
-				let lengthExpr = GenC.#getStringSubstringLength(call);
-				let rightLength = literal.getAsciiLength();
-				if (rightLength >= 0) {
-					let rightValue = literal.value;
-					let leftLength;
-					if ((leftLength = lengthExpr) instanceof FuLiteralLong) {
-						if (leftLength.value != rightLength)
-							this.notYet(left, "String comparison with unmatched length");
-						this.writeSubstringEqual(call, rightValue, parent, not);
-					}
-					else if (not) {
-						if (parent > FuPriority.COND_OR)
-							this.writeChar(40);
-						lengthExpr.accept(this, FuPriority.EQUALITY);
-						this.write(" != ");
-						this.visitLiteralLong(BigInt(rightLength), FuPriority.EQUALITY);
-						if (rightLength > 0) {
-							this.write(" || ");
-							this.writeSubstringEqual(call, rightValue, FuPriority.COND_OR, true);
+		if ((left == null || left.type instanceof FuStringType) && right.type instanceof FuStringType) {
+			if (left != null) {
+				let call = GenC.isStringSubstring(left);
+				let literal;
+				if (call != null && (literal = right) instanceof FuLiteralString) {
+					let lengthExpr = GenC.#getStringSubstringLength(call);
+					let rightLength = literal.getAsciiLength();
+					if (rightLength >= 0) {
+						let rightValue = literal.value;
+						let leftLength;
+						if ((leftLength = lengthExpr) instanceof FuLiteralLong) {
+							if (leftLength.value != rightLength)
+								this.notYet(left, "String comparison with unmatched length");
+							this.writeSubstringEqual(call, rightValue, parent, not);
 						}
-						if (parent > FuPriority.COND_OR)
-							this.writeChar(41);
-					}
-					else {
-						if (parent > FuPriority.COND_AND || parent == FuPriority.COND_OR)
-							this.writeChar(40);
-						lengthExpr.accept(this, FuPriority.EQUALITY);
-						this.write(" == ");
-						this.visitLiteralLong(BigInt(rightLength), FuPriority.EQUALITY);
-						if (rightLength > 0) {
-							this.write(" && ");
-							this.writeSubstringEqual(call, rightValue, FuPriority.COND_AND, false);
+						else if (not) {
+							if (parent > FuPriority.COND_OR)
+								this.writeChar(40);
+							lengthExpr.accept(this, FuPriority.EQUALITY);
+							this.write(" != ");
+							this.visitLiteralLong(BigInt(rightLength), FuPriority.EQUALITY);
+							if (rightLength > 0) {
+								this.write(" || ");
+								this.writeSubstringEqual(call, rightValue, FuPriority.COND_OR, true);
+							}
+							if (parent > FuPriority.COND_OR)
+								this.writeChar(41);
 						}
-						if (parent > FuPriority.COND_AND || parent == FuPriority.COND_OR)
-							this.writeChar(41);
+						else {
+							if (parent > FuPriority.COND_AND || parent == FuPriority.COND_OR)
+								this.writeChar(40);
+							lengthExpr.accept(this, FuPriority.EQUALITY);
+							this.write(" == ");
+							this.visitLiteralLong(BigInt(rightLength), FuPriority.EQUALITY);
+							if (rightLength > 0) {
+								this.write(" && ");
+								this.writeSubstringEqual(call, rightValue, FuPriority.COND_AND, false);
+							}
+							if (parent > FuPriority.COND_AND || parent == FuPriority.COND_OR)
+								this.writeChar(41);
+						}
+						return;
 					}
-					return;
 				}
 			}
 			this.writeEqualStringInternal(left, right, parent, not);
@@ -14404,18 +14411,6 @@ export class GenC extends GenCCpp
 		return !substring.arguments_.every(arg => arg.isConst(true) || arg.isLocalReference());
 	}
 
-	writeSwitchVarCaseCond(value)
-	{
-		if (value.type instanceof FuStringType) {
-			this.include("string.h");
-			this.write("strcmp(fuSwitchValue, ");
-			value.accept(this, FuPriority.ARGUMENT);
-			this.write(") == 0");
-		}
-		else
-			super.writeSwitchVarCaseCond(value);
-	}
-
 	writeSwitchCaseBody(statements)
 	{
 		let konst;
@@ -15648,7 +15643,8 @@ export class GenCl extends GenC
 		this.#stringEquals = true;
 		if (not)
 			this.writeChar(33);
-		this.writeCall("FuString_Equals", left, right);
+		this.write("FuString_Equals");
+		this.writeStrCmpArguments(left, right);
 	}
 
 	writeStringLength(expr)
@@ -15798,18 +15794,6 @@ export class GenCl extends GenC
 
 	writeAssert(statement)
 	{
-	}
-
-	writeSwitchVarCaseCond(value)
-	{
-		if (value.type instanceof FuStringType) {
-			this.#stringEquals = true;
-			this.write("FuString_Equals(fuSwitchValue, ");
-			value.accept(this, FuPriority.ARGUMENT);
-			this.writeChar(41);
-		}
-		else
-			super.writeSwitchVarCaseCond(value);
 	}
 
 	writeSwitchCaseBody(statements)
@@ -16338,12 +16322,12 @@ export class GenCpp extends GenCCpp
 
 	writeEqual(left, right, parent, not)
 	{
-		if (GenCpp.#needStringPtrData(left) && right.type.id == FuId.NULL_TYPE) {
+		if (left != null && GenCpp.#needStringPtrData(left) && right.type.id == FuId.NULL_TYPE) {
 			this.writePostfix(left, ".data()");
 			this.write(GenCpp.getEqOp(not));
 			this.write("nullptr");
 		}
-		else if (left.type.id == FuId.NULL_TYPE && GenCpp.#needStringPtrData(right)) {
+		else if (left != null && left.type.id == FuId.NULL_TYPE && GenCpp.#needStringPtrData(right)) {
 			this.write("nullptr");
 			this.write(GenCpp.getEqOp(not));
 			this.writePostfix(right, ".data()");
@@ -20717,7 +20701,7 @@ export class GenD extends GenCCppD
 
 	writeEqual(left, right, parent, not)
 	{
-		if (GenD.#isIsComparable(left) || GenD.#isIsComparable(right))
+		if ((left != null && GenD.#isIsComparable(left)) || GenD.#isIsComparable(right))
 			this.writeEqualExpr(left, right, parent, not ? " !is " : " is ");
 		else
 			super.writeEqual(left, right, parent, not);
@@ -20855,14 +20839,6 @@ export class GenD extends GenCCppD
 	{
 		this.writeCall("synchronized ", statement.lock);
 		this.writeChild(statement.body);
-	}
-
-	writeSwitchVarCaseCond(value)
-	{
-		if (value instanceof FuLiteralNull)
-			this.write("fuSwitchValue is null");
-		else
-			super.writeSwitchVarCaseCond(value);
 	}
 
 	writeSwitchCaseTypeVar(value)

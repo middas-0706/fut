@@ -8869,18 +8869,21 @@ namespace Fusion
 			expr.Accept(this, FuPriority.Equality);
 		}
 
-		protected void WriteEqualExpr(FuExpr left, FuExpr right, FuPriority parent, string op)
+		protected void WriteEqualExpr(FuExpr? left, FuExpr right, FuPriority parent, string op)
 		{
 			if (parent > FuPriority.CondAnd)
 				WriteChar('(');
-			WriteEqualOperand(left, right);
+			if (left == null)
+				Write("fuSwitchValue");
+			else
+				WriteEqualOperand(left!, right);
 			Write(op);
-			WriteEqualOperand(right, left);
+			WriteEqualOperand(right, left!);
 			if (parent > FuPriority.CondAnd)
 				WriteChar(')');
 		}
 
-		protected virtual void WriteEqual(FuExpr left, FuExpr right, FuPriority parent, bool not)
+		protected virtual void WriteEqual(FuExpr? left, FuExpr right, FuPriority parent, bool not)
 		{
 			WriteEqualExpr(left, right, parent, GetEqOp(not));
 		}
@@ -9762,12 +9765,6 @@ namespace Fusion
 			expr.Accept(this, FuPriority.Argument);
 		}
 
-		protected virtual void WriteSwitchVarCaseCond(FuExpr value)
-		{
-			Write("fuSwitchValue == ");
-			value.Accept(this, FuPriority.Equality);
-		}
-
 		protected void WriteExprOrSwitchValue(bool switchVar, FuExpr expr, FuPriority parent)
 		{
 			if (switchVar)
@@ -9787,10 +9784,8 @@ namespace Fusion
 				if (parent > FuPriority.SelectCond)
 					WriteChar(')');
 			}
-			else if (switchVar)
-				WriteSwitchVarCaseCond(value);
 			else
-				WriteEqual(switchValue, value, parent, false);
+				WriteEqual(switchVar ? null : switchValue, value, parent, false);
 		}
 
 		protected virtual void WriteIfCaseBody(List<FuStatement> body, bool doWhile, FuSwitch statement, FuCase? kase)
@@ -10549,19 +10544,19 @@ namespace Fusion
 			return null;
 		}
 
-		protected override void WriteEqual(FuExpr left, FuExpr right, FuPriority parent, bool not)
+		protected override void WriteEqual(FuExpr? left, FuExpr right, FuPriority parent, bool not)
 		{
-			if (left.Type is FuClassType leftClass && right.Type is FuClassType rightClass && leftClass.Class.Id != FuId.StringClass) {
+			if (left != null && left!.Type is FuClassType leftClass && right.Type is FuClassType rightClass && leftClass.Class.Id != FuId.StringClass) {
 				FuType coercedType;
 				if (leftClass.IsAssignableFrom(rightClass))
-					coercedType = left.Type!;
+					coercedType = left!.Type!;
 				else if (rightClass.IsAssignableFrom(leftClass))
 					coercedType = right.Type!;
 				else
 					coercedType = new FuClassType { Class = leftClass.Class.GetLowestCommonAncestor(rightClass.Class)!, Nullable = true, TypeArg0 = leftClass.TypeArg0, TypeArg1 = leftClass.TypeArg1 };
 				if (parent > FuPriority.Equality)
 					WriteChar('(');
-				WriteCoerced(coercedType, left, FuPriority.Equality);
+				WriteCoerced(coercedType, left!, FuPriority.Equality);
 				Write(GetEqOp(not));
 				WriteCoerced(coercedType, right, FuPriority.Equality);
 				if (parent > FuPriority.Equality)
@@ -12338,59 +12333,71 @@ namespace Fusion
 				WriteChar(')');
 		}
 
-		protected virtual void WriteEqualStringInternal(FuExpr left, FuExpr right, FuPriority parent, bool not)
+		protected void WriteStrCmpArguments(FuExpr? left, FuExpr right)
+		{
+			WriteChar('(');
+			WriteExprOrSwitchValue(left == null, left!, FuPriority.Argument);
+			Write(", ");
+			right.Accept(this, FuPriority.Argument);
+			WriteChar(')');
+		}
+
+		protected virtual void WriteEqualStringInternal(FuExpr? left, FuExpr right, FuPriority parent, bool not)
 		{
 			if (parent > FuPriority.Equality)
 				WriteChar('(');
 			Include("string.h");
-			WriteCall("strcmp", left, right);
+			Write("strcmp");
+			WriteStrCmpArguments(left, right);
 			Write(GetEqOp(not));
 			WriteChar('0');
 			if (parent > FuPriority.Equality)
 				WriteChar(')');
 		}
 
-		protected override void WriteEqual(FuExpr left, FuExpr right, FuPriority parent, bool not)
+		protected override void WriteEqual(FuExpr? left, FuExpr right, FuPriority parent, bool not)
 		{
-			if (left.Type is FuStringType && right.Type is FuStringType) {
-				FuCallExpr? call = IsStringSubstring(left);
-				if (call != null && right is FuLiteralString literal) {
-					FuExpr lengthExpr = GetStringSubstringLength(call!);
-					int rightLength = literal.GetAsciiLength();
-					if (rightLength >= 0) {
-						string rightValue = literal.Value;
-						if (lengthExpr is FuLiteralLong leftLength) {
-							if (leftLength.Value != rightLength)
-								NotYet(left, "String comparison with unmatched length");
-							WriteSubstringEqual(call!, rightValue, parent, not);
-						}
-						else if (not) {
-							if (parent > FuPriority.CondOr)
-								WriteChar('(');
-							lengthExpr.Accept(this, FuPriority.Equality);
-							Write(" != ");
-							VisitLiteralLong(rightLength, FuPriority.Equality);
-							if (rightLength > 0) {
-								Write(" || ");
-								WriteSubstringEqual(call!, rightValue, FuPriority.CondOr, true);
+			if ((left == null || left!.Type is FuStringType) && right.Type is FuStringType) {
+				if (left != null) {
+					FuCallExpr? call = IsStringSubstring(left!);
+					if (call != null && right is FuLiteralString literal) {
+						FuExpr lengthExpr = GetStringSubstringLength(call!);
+						int rightLength = literal.GetAsciiLength();
+						if (rightLength >= 0) {
+							string rightValue = literal.Value;
+							if (lengthExpr is FuLiteralLong leftLength) {
+								if (leftLength.Value != rightLength)
+									NotYet(left!, "String comparison with unmatched length");
+								WriteSubstringEqual(call!, rightValue, parent, not);
 							}
-							if (parent > FuPriority.CondOr)
-								WriteChar(')');
-						}
-						else {
-							if (parent > FuPriority.CondAnd || parent == FuPriority.CondOr)
-								WriteChar('(');
-							lengthExpr.Accept(this, FuPriority.Equality);
-							Write(" == ");
-							VisitLiteralLong(rightLength, FuPriority.Equality);
-							if (rightLength > 0) {
-								Write(" && ");
-								WriteSubstringEqual(call!, rightValue, FuPriority.CondAnd, false);
+							else if (not) {
+								if (parent > FuPriority.CondOr)
+									WriteChar('(');
+								lengthExpr.Accept(this, FuPriority.Equality);
+								Write(" != ");
+								VisitLiteralLong(rightLength, FuPriority.Equality);
+								if (rightLength > 0) {
+									Write(" || ");
+									WriteSubstringEqual(call!, rightValue, FuPriority.CondOr, true);
+								}
+								if (parent > FuPriority.CondOr)
+									WriteChar(')');
 							}
-							if (parent > FuPriority.CondAnd || parent == FuPriority.CondOr)
-								WriteChar(')');
+							else {
+								if (parent > FuPriority.CondAnd || parent == FuPriority.CondOr)
+									WriteChar('(');
+								lengthExpr.Accept(this, FuPriority.Equality);
+								Write(" == ");
+								VisitLiteralLong(rightLength, FuPriority.Equality);
+								if (rightLength > 0) {
+									Write(" && ");
+									WriteSubstringEqual(call!, rightValue, FuPriority.CondAnd, false);
+								}
+								if (parent > FuPriority.CondAnd || parent == FuPriority.CondOr)
+									WriteChar(')');
+							}
+							return;
 						}
-						return;
 					}
 				}
 				WriteEqualStringInternal(left, right, parent, not);
@@ -13829,18 +13836,6 @@ namespace Fusion
 			return !substring!.Arguments.TrueForAll(arg => arg.IsConst(true) || arg.IsLocalReference());
 		}
 
-		protected override void WriteSwitchVarCaseCond(FuExpr value)
-		{
-			if (value.Type is FuStringType) {
-				Include("string.h");
-				Write("strcmp(fuSwitchValue, ");
-				value.Accept(this, FuPriority.Argument);
-				Write(") == 0");
-			}
-			else
-				base.WriteSwitchVarCaseCond(value);
-		}
-
 		protected override void WriteSwitchCaseBody(List<FuStatement> statements)
 		{
 			if (statements[0] is FuVar || (statements[0] is FuConst konst && konst.Type is FuArrayStorageType))
@@ -15051,12 +15046,13 @@ namespace Fusion
 			WriteChar(')');
 		}
 
-		protected override void WriteEqualStringInternal(FuExpr left, FuExpr right, FuPriority parent, bool not)
+		protected override void WriteEqualStringInternal(FuExpr? left, FuExpr right, FuPriority parent, bool not)
 		{
 			this.StringEquals = true;
 			if (not)
 				WriteChar('!');
-			WriteCall("FuString_Equals", left, right);
+			Write("FuString_Equals");
+			WriteStrCmpArguments(left, right);
 		}
 
 		protected override void WriteStringLength(FuExpr expr)
@@ -15203,18 +15199,6 @@ namespace Fusion
 
 		protected override void WriteAssert(FuAssert statement)
 		{
-		}
-
-		protected override void WriteSwitchVarCaseCond(FuExpr value)
-		{
-			if (value.Type is FuStringType) {
-				this.StringEquals = true;
-				Write("FuString_Equals(fuSwitchValue, ");
-				value.Accept(this, FuPriority.Argument);
-				WriteChar(')');
-			}
-			else
-				base.WriteSwitchVarCaseCond(value);
 		}
 
 		protected override void WriteSwitchCaseBody(List<FuStatement> statements)
@@ -15748,14 +15732,14 @@ namespace Fusion
 			return expr.Type!.Id == FuId.StringPtrType;
 		}
 
-		protected override void WriteEqual(FuExpr left, FuExpr right, FuPriority parent, bool not)
+		protected override void WriteEqual(FuExpr? left, FuExpr right, FuPriority parent, bool not)
 		{
-			if (NeedStringPtrData(left) && right.Type!.Id == FuId.NullType) {
-				WritePostfix(left, ".data()");
+			if (left != null && NeedStringPtrData(left!) && right.Type!.Id == FuId.NullType) {
+				WritePostfix(left!, ".data()");
 				Write(GetEqOp(not));
 				Write("nullptr");
 			}
-			else if (left.Type!.Id == FuId.NullType && NeedStringPtrData(right)) {
+			else if (left != null && left!.Type!.Id == FuId.NullType && NeedStringPtrData(right)) {
 				Write("nullptr");
 				Write(GetEqOp(not));
 				WritePostfix(right, ".data()");
@@ -20041,9 +20025,9 @@ namespace Fusion
 
 		static bool IsIsComparable(FuExpr expr) => expr is FuLiteralNull || (expr.Type is FuClassType klass && klass.Class.Id == FuId.ArrayPtrClass);
 
-		protected override void WriteEqual(FuExpr left, FuExpr right, FuPriority parent, bool not)
+		protected override void WriteEqual(FuExpr? left, FuExpr right, FuPriority parent, bool not)
 		{
-			if (IsIsComparable(left) || IsIsComparable(right))
+			if ((left != null && IsIsComparable(left!)) || IsIsComparable(right))
 				WriteEqualExpr(left, right, parent, not ? " !is " : " is ");
 			else
 				base.WriteEqual(left, right, parent, not);
@@ -20176,14 +20160,6 @@ namespace Fusion
 		{
 			WriteCall("synchronized ", statement.Lock);
 			WriteChild(statement.Body);
-		}
-
-		protected override void WriteSwitchVarCaseCond(FuExpr value)
-		{
-			if (value is FuLiteralNull)
-				Write("fuSwitchValue is null");
-			else
-				base.WriteSwitchVarCaseCond(value);
 		}
 
 		protected override void WriteSwitchCaseTypeVar(FuExpr value)
@@ -20882,17 +20858,17 @@ namespace Fusion
 
 		static bool IsCollectionIndexing(FuExpr expr) => expr is FuBinaryExpr binary && binary.Op == FuToken.LeftBracket && !binary.Left.Type!.IsArray() && !(binary.Left.Type is FuStringType);
 
-		protected override void WriteEqual(FuExpr left, FuExpr right, FuPriority parent, bool not)
+		protected override void WriteEqual(FuExpr? left, FuExpr right, FuPriority parent, bool not)
 		{
-			if ((left.Type is FuStringType && right.Type!.Id != FuId.NullType) || (right.Type is FuStringType && left.Type!.Id != FuId.NullType)) {
+			if ((left!.Type is FuStringType && right.Type!.Id != FuId.NullType) || (right.Type is FuStringType && left!.Type!.Id != FuId.NullType)) {
 				if (not)
 					WriteChar('!');
-				WriteMethodCall(left, "equals", right);
+				WriteMethodCall(left!, "equals", right);
 			}
-			else if (IsUnsignedByteIndexing(left) && right is FuLiteralLong rightLiteral && rightLiteral.Type!.Id == FuId.ByteRange) {
+			else if (IsUnsignedByteIndexing(left!) && right is FuLiteralLong rightLiteral && rightLiteral.Type!.Id == FuId.ByteRange) {
 				if (parent > FuPriority.Equality)
 					WriteChar('(');
-				FuBinaryExpr indexing = (FuBinaryExpr) left;
+				FuBinaryExpr indexing = (FuBinaryExpr) left!;
 				WriteIndexingInternal(indexing);
 				Write(GetEqOp(not));
 				WriteSByteLiteral(rightLiteral);
@@ -20900,8 +20876,8 @@ namespace Fusion
 					WriteChar(')');
 			}
 			else {
-				if (left.Type is FuNumericType && IsCollectionIndexing(left) && IsCollectionIndexing(right))
-					WriteStaticCastType(left.Type!);
+				if (left!.Type is FuNumericType && IsCollectionIndexing(left!) && IsCollectionIndexing(right))
+					WriteStaticCastType(left!.Type!);
 				base.WriteEqual(left, right, parent, not);
 			}
 		}
@@ -23964,9 +23940,9 @@ namespace Fusion
 
 		protected abstract string GetReferenceEqOp(bool not);
 
-		protected override void WriteEqual(FuExpr left, FuExpr right, FuPriority parent, bool not)
+		protected override void WriteEqual(FuExpr? left, FuExpr right, FuPriority parent, bool not)
 		{
-			if (IsPtr(left) || IsPtr(right))
+			if (IsPtr(left!) || IsPtr(right))
 				WriteEqualExpr(left, right, parent, GetReferenceEqOp(not));
 			else
 				base.WriteEqual(left, right, parent, not);

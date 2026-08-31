@@ -148,12 +148,13 @@ public class GenCl : GenC
 		WriteChar(')');
 	}
 
-	protected override void WriteEqualStringInternal!(FuExpr left, FuExpr right, FuPriority parent, bool not)
+	protected override void WriteEqualStringInternal!(FuExpr? left, FuExpr right, FuPriority parent, bool not)
 	{
 		this.StringEquals = true;
 		if (not)
 			WriteChar('!');
-		WriteCall("FuString_Equals", left, right);
+		Write("FuString_Equals");
+		WriteStrCmpArguments(left, right);
 	}
 
 	protected override void WriteStringLength!(FuExpr expr)
@@ -300,18 +301,6 @@ public class GenCl : GenC
 
 	protected override void WriteAssert!(FuAssert statement)
 	{
-	}
-
-	protected override void WriteSwitchVarCaseCond!(FuExpr value)
-	{
-		if (value.Type is FuStringType) {
-			this.StringEquals = true;
-			Write("FuString_Equals(fuSwitchValue, ");
-			value.Accept(this, FuPriority.Argument);
-			WriteChar(')');
-		}
-		else
-			base.WriteSwitchVarCaseCond(value);
 	}
 
 	protected override void WriteSwitchCaseBody!(List<FuStatement#> statements)

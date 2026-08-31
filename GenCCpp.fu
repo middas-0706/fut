@@ -136,9 +136,9 @@ public abstract class GenCCpp : GenCCppD
 		return null;
 	}
 
-	protected override void WriteEqual!(FuExpr left, FuExpr right, FuPriority parent, bool not)
+	protected override void WriteEqual!(FuExpr? left, FuExpr right, FuPriority parent, bool not)
 	{
-		if (left.Type is FuClassType leftClass && right.Type is FuClassType rightClass && leftClass.Class.Id != FuId.StringClass) {
+		if (left != null && left.Type is FuClassType leftClass && right.Type is FuClassType rightClass && leftClass.Class.Id != FuId.StringClass) {
 			FuType# coercedType;
 			if (leftClass.IsAssignableFrom(rightClass))
 				coercedType = left.Type;

@@ -1316,9 +1316,9 @@ public class GenD : GenCCppD
 
 	static bool IsIsComparable(FuExpr expr) => expr is FuLiteralNull || (expr.Type is FuClassType klass && klass.Class.Id == FuId.ArrayPtrClass);
 
-	protected override void WriteEqual!(FuExpr left, FuExpr right, FuPriority parent, bool not)
+	protected override void WriteEqual!(FuExpr? left, FuExpr right, FuPriority parent, bool not)
 	{
-		if (IsIsComparable(left) || IsIsComparable(right))
+		if ((left != null && IsIsComparable(left)) || IsIsComparable(right))
 			WriteEqualExpr(left, right, parent, not ? " !is " : " is ");
 		else
 			base.WriteEqual(left, right, parent, not);
@@ -1453,14 +1453,6 @@ public class GenD : GenCCppD
 	{
 		WriteCall("synchronized ", statement.Lock);
 		WriteChild(statement.Body);
-	}
-
-	protected override void WriteSwitchVarCaseCond!(FuExpr value)
-	{
-		if (value is FuLiteralNull)
-			Write("fuSwitchValue is null");
-		else
-			base.WriteSwitchVarCaseCond(value);
 	}
 
 	protected override void WriteSwitchCaseTypeVar!(FuExpr value)

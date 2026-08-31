@@ -1625,59 +1625,71 @@ public class GenC : GenCCpp
 			WriteChar(')');
 	}
 
-	protected virtual void WriteEqualStringInternal!(FuExpr left, FuExpr right, FuPriority parent, bool not)
+	protected void WriteStrCmpArguments!(FuExpr? left, FuExpr right)
+	{
+		WriteChar('(');
+		WriteExprOrSwitchValue(left == null, left, FuPriority.Argument);
+		Write(", ");
+		right.Accept(this, FuPriority.Argument);
+		WriteChar(')');
+	}
+
+	protected virtual void WriteEqualStringInternal!(FuExpr? left, FuExpr right, FuPriority parent, bool not)
 	{
 		if (parent > FuPriority.Equality)
 			WriteChar('(');
 		Include("string.h");
-		WriteCall("strcmp", left, right);
+		Write("strcmp");
+		WriteStrCmpArguments(left, right);
 		Write(GetEqOp(not));
 		WriteChar('0');
 		if (parent > FuPriority.Equality)
 			WriteChar(')');
 	}
 
-	protected override void WriteEqual!(FuExpr left, FuExpr right, FuPriority parent, bool not)
+	protected override void WriteEqual!(FuExpr? left, FuExpr right, FuPriority parent, bool not)
 	{
-		if (left.Type is FuStringType && right.Type is FuStringType) {
-			FuCallExpr? call = IsStringSubstring(left);
-			if (call != null && right is FuLiteralString literal) {
-				FuExpr lengthExpr = GetStringSubstringLength(call);
-				int rightLength = literal.GetAsciiLength();
-				if (rightLength >= 0) {
-					string rightValue = literal.Value;
-					if (lengthExpr is FuLiteralLong leftLength) {
-						if (leftLength.Value != rightLength)
-							NotYet(left, "String comparison with unmatched length"); // TODO: evaluate compile-time
-						WriteSubstringEqual(call, rightValue, parent, not);
-					}
-					else if (not) {
-						if (parent > FuPriority.CondOr)
-							WriteChar('(');
-						lengthExpr.Accept(this, FuPriority.Equality);
-						Write(" != ");
-						VisitLiteralLong(rightLength, FuPriority.Equality);
-						if (rightLength > 0) {
-							Write(" || ");
-							WriteSubstringEqual(call, rightValue, FuPriority.CondOr, true);
+		if ((left == null || left.Type is FuStringType) && right.Type is FuStringType) {
+			if (left != null) {
+				FuCallExpr? call = IsStringSubstring(left);
+				if (call != null && right is FuLiteralString literal) {
+					FuExpr lengthExpr = GetStringSubstringLength(call);
+					int rightLength = literal.GetAsciiLength();
+					if (rightLength >= 0) {
+						string rightValue = literal.Value;
+						if (lengthExpr is FuLiteralLong leftLength) {
+							if (leftLength.Value != rightLength)
+								NotYet(left, "String comparison with unmatched length"); // TODO: evaluate compile-time
+							WriteSubstringEqual(call, rightValue, parent, not);
 						}
-						if (parent > FuPriority.CondOr)
-							WriteChar(')');
-					}
-					else {
-						if (parent > FuPriority.CondAnd || parent == FuPriority.CondOr)
-							WriteChar('(');
-						lengthExpr.Accept(this, FuPriority.Equality);
-						Write(" == ");
-						VisitLiteralLong(rightLength, FuPriority.Equality);
-						if (rightLength > 0) {
-							Write(" && ");
-							WriteSubstringEqual(call, rightValue, FuPriority.CondAnd, false);
+						else if (not) {
+							if (parent > FuPriority.CondOr)
+								WriteChar('(');
+							lengthExpr.Accept(this, FuPriority.Equality);
+							Write(" != ");
+							VisitLiteralLong(rightLength, FuPriority.Equality);
+							if (rightLength > 0) {
+								Write(" || ");
+								WriteSubstringEqual(call, rightValue, FuPriority.CondOr, true);
+							}
+							if (parent > FuPriority.CondOr)
+								WriteChar(')');
 						}
-						if (parent > FuPriority.CondAnd || parent == FuPriority.CondOr)
-							WriteChar(')');
+						else {
+							if (parent > FuPriority.CondAnd || parent == FuPriority.CondOr)
+								WriteChar('(');
+							lengthExpr.Accept(this, FuPriority.Equality);
+							Write(" == ");
+							VisitLiteralLong(rightLength, FuPriority.Equality);
+							if (rightLength > 0) {
+								Write(" && ");
+								WriteSubstringEqual(call, rightValue, FuPriority.CondAnd, false);
+							}
+							if (parent > FuPriority.CondAnd || parent == FuPriority.CondOr)
+								WriteChar(')');
+						}
+						return;
 					}
-					return;
 				}
 			}
 			WriteEqualStringInternal(left, right, parent, not);
@@ -3124,18 +3136,6 @@ public class GenC : GenCCpp
 		if (substring.Method.Symbol.Id == FuId.StringSubstring && !substring.Method.Left.IsLocalReference())
 			return false;
 		return !substring.Arguments.All(arg => arg.IsConst(true) || arg.IsLocalReference());
-	}
-
-	protected override void WriteSwitchVarCaseCond!(FuExpr value)
-	{
-		if (value.Type is FuStringType) {
-			Include("string.h");
-			Write("strcmp(fuSwitchValue, ");
-			value.Accept(this, FuPriority.Argument);
-			Write(") == 0");
-		}
-		else
-			base.WriteSwitchVarCaseCond(value);
 	}
 
 	protected override void WriteSwitchCaseBody!(List<FuStatement#> statements)

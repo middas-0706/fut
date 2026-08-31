@@ -458,14 +458,14 @@ public class GenCpp : GenCCpp
 		return expr.Type.Id == FuId.StringPtrType;
 	}
 
-	protected override void WriteEqual!(FuExpr left, FuExpr right, FuPriority parent, bool not)
+	protected override void WriteEqual!(FuExpr? left, FuExpr right, FuPriority parent, bool not)
 	{
-		if (NeedStringPtrData(left) && right.Type.Id == FuId.NullType) {
+		if (left != null && NeedStringPtrData(left) && right.Type.Id == FuId.NullType) {
 			WritePostfix(left, ".data()");
 			Write(GetEqOp(not));
 			Write("nullptr");
 		}
-		else if (left.Type.Id == FuId.NullType && NeedStringPtrData(right)) {
+		else if (left != null && left.Type.Id == FuId.NullType && NeedStringPtrData(right)) {
 			Write("nullptr");
 			Write(GetEqOp(not));
 			WritePostfix(right, ".data()");
