@@ -1563,19 +1563,19 @@ public class GenCpp : GenCCpp
 		}
 	}
 
-	void WriteGtRawPtr!(FuExpr? expr)
+	void WriteGtRawPtr!(bool switchVar, FuExpr expr)
 	{
 		Write(">(");
-		if (expr == null)
-			Write("fuSwitchValue");
-		else if (IsSharedPtr(expr))
-			WritePostfix(expr, ".get()");
+		if (IsSharedPtr(expr)) {
+			WriteExprOrSwitchValue(switchVar, expr, FuPriority.Primary);
+			Write(".get()");
+		}
 		else
-			expr.Accept(this, FuPriority.Argument);
+			WriteExprOrSwitchValue(switchVar, expr, FuPriority.Argument);
 		WriteChar(')');
 	}
 
-	void WriteIsVar!(FuExpr expr, FuVar def, FuPriority parent)
+	void WriteIsVar!(bool switchVar, FuExpr expr, FuVar def, FuPriority parent)
 	{
 		if (parent > FuPriority.Assign)
 			WriteChar('(');
@@ -1584,15 +1584,14 @@ public class GenCpp : GenCCpp
 		if (def.Type is FuDynamicPtrType dynamic) {
 			Write("std::dynamic_pointer_cast<");
 			Write(dynamic.Class.Name);
-			if (expr == null)
-				Write(">(fuSwitchValue)");
-			else
-				WriteCall(">", expr);
+			Write(">(");
+			WriteExprOrSwitchValue(switchVar, expr, FuPriority.Argument);
+			WriteChar(')');
 		}
 		else {
 			Write("dynamic_cast<");
 			WriteType(def.Type, true);
-			WriteGtRawPtr(expr);
+			WriteGtRawPtr(switchVar, expr);
 		}
 		if (parent > FuPriority.Assign)
 			WriteChar(')');
@@ -1640,10 +1639,10 @@ public class GenCpp : GenCCpp
 				Write("dynamic_cast<const ");
 				Write(symbol.Symbol.Name);
 				Write(" *");
-				WriteGtRawPtr(expr.Left);
+				WriteGtRawPtr(false, expr.Left);
 				return;
 			case FuVar def:
-				WriteIsVar(expr.Left, def, parent);
+				WriteIsVar(false, expr.Left, def, parent);
 				return;
 			default:
 				assert false;
@@ -1821,31 +1820,26 @@ public class GenCpp : GenCCpp
 			expr.Accept(this, FuPriority.Argument);
 			WriteChar('}');
 		}
-		else if (IsSharedPtr(expr)) {
-			WriteClassType(expr.Type.AsClassType());
-			Write(" *fuSwitchValue = ");
-			WritePostfix(expr, ".get()");
-		}
 		else
 			base.WriteSwitchVar(expr);
 	}
 
-	protected override void WriteSwitchCaseCond!(FuExpr? switchValue, FuExpr value, FuPriority parent)
+	protected override void WriteSwitchCaseCond!(bool switchVar, FuExpr switchValue, FuExpr value, FuPriority parent)
 	{
 		switch (value) {
 		case FuSymbolReference symbol when symbol.Symbol is FuClass:
 			Write("dynamic_cast<const ");
 			Write(symbol.Symbol.Name);
 			Write(" *");
-			WriteGtRawPtr(switchValue);
+			WriteGtRawPtr(switchVar, switchValue);
 			break;
 		case FuVar def:
 			if (parent == FuPriority.Argument)
 				WriteType(def.Type, true);
-			WriteIsVar(switchValue, def, parent); // FIXME: side effect in every if
+			WriteIsVar(switchVar, switchValue, def, parent);
 			break;
 		default:
-			base.WriteSwitchCaseCond(switchValue, value, parent);
+			base.WriteSwitchCaseCond(switchVar, switchValue, value, parent);
 			break;
 		}
 	}

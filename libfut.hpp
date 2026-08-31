@@ -2679,8 +2679,8 @@ protected:
 	virtual bool needsSwitchVar(const FuExpr * expr) const;
 	virtual void writeSwitchVar(const FuExpr * expr);
 	virtual void writeSwitchVarCaseCond(const FuExpr * value);
-	void writeExprOrSwitchValue(const FuExpr * expr, FuPriority parent);
-	virtual void writeSwitchCaseCond(const FuExpr * switchValue, const FuExpr * value, FuPriority parent);
+	void writeExprOrSwitchValue(bool switchVar, const FuExpr * expr, FuPriority parent);
+	virtual void writeSwitchCaseCond(bool switchVar, const FuExpr * switchValue, const FuExpr * value, FuPriority parent);
 	virtual void writeIfCaseBody(const std::vector<std::shared_ptr<FuStatement>> * body, bool doWhile, const FuSwitch * statement, const FuCase * kase);
 	void writeSwitchAsIfs(const FuSwitch * statement, bool doWhile);
 	virtual void writeException();
@@ -3147,7 +3147,7 @@ protected:
 	bool embedIfWhileIsVar(const FuExpr * expr, bool write) override;
 	void writeStronglyCoerced(const FuType * type, const FuExpr * expr) override;
 	void writeSwitchVar(const FuExpr * expr) override;
-	void writeSwitchCaseCond(const FuExpr * switchValue, const FuExpr * value, FuPriority parent) override;
+	void writeSwitchCaseCond(bool switchVar, const FuExpr * switchValue, const FuExpr * value, FuPriority parent) override;
 	void writeSwitchCaseBody(const std::vector<std::shared_ptr<FuStatement>> * statements) override;
 	void writeException() override;
 	void writeThrowMessage(const FuExpr * expr) override;
@@ -3200,8 +3200,8 @@ private:
 	void writeRegexArgument(const FuExpr * expr);
 	void writeMathClampMaxMin(const FuType * type, std::string_view function, const std::vector<std::shared_ptr<FuExpr>> * args);
 	void writeMatchProperty(const FuSymbolReference * expr, std::string_view name);
-	void writeGtRawPtr(const FuExpr * expr);
-	void writeIsVar(const FuExpr * expr, const FuVar * def, FuPriority parent);
+	void writeGtRawPtr(bool switchVar, const FuExpr * expr);
+	void writeIsVar(bool switchVar, const FuExpr * expr, const FuVar * def, FuPriority parent);
 	static bool hasLambdaCapture(const FuExpr * expr, const FuLambdaExpr * lambda);
 	static bool isIsVar(const FuExpr * expr);
 	bool hasVariables(const FuStatement * statement) const;
@@ -3312,7 +3312,7 @@ protected:
 	void writeAssert(const FuAssert * statement) override;
 	void writeSwitchVarCaseCond(const FuExpr * value) override;
 	void writeSwitchCaseTypeVar(const FuExpr * value) override;
-	void writeSwitchCaseCond(const FuExpr * switchValue, const FuExpr * value, FuPriority parent) override;
+	void writeSwitchCaseCond(bool switchVar, const FuExpr * switchValue, const FuExpr * value, FuPriority parent) override;
 	void writeThrowMessage(const FuExpr * expr) override;
 	void writeEnum(const FuEnum * enu) override;
 	void writeConst(const FuConst * konst) override;
@@ -3355,7 +3355,7 @@ private:
 	void writeInsertedArg(const FuType * type, const std::vector<std::shared_ptr<FuExpr>> * args, int index = 0);
 	void writeJsonElementIs(const FuExpr * obj, std::string_view name, FuPriority parent);
 	static bool isIsComparable(const FuExpr * expr);
-	void writeIsVar(const FuExpr * left, const FuExpr * right, FuPriority parent);
+	void writeIsVar(bool switchVar, const FuExpr * left, const FuExpr * right, FuPriority parent);
 	void writeResources(const std::map<std::string, std::vector<uint8_t>> * resources);
 	void writeMain(const FuMethod * main, std::string_view namespace_);
 };
@@ -3484,7 +3484,7 @@ protected:
 	void writeAssert(const FuAssert * statement) override;
 	void startBreakGoto() override;
 	void writeSwitchVar(const FuExpr * expr) override;
-	void writeSwitchCaseCond(const FuExpr * switchValue, const FuExpr * value, FuPriority parent) override;
+	void writeSwitchCaseCond(bool switchVar, const FuExpr * switchValue, const FuExpr * value, FuPriority parent) override;
 	void writeIfCaseBody(const std::vector<std::shared_ptr<FuStatement>> * body, bool doWhile, const FuSwitch * statement, const FuCase * kase) override;
 	void writeException() override;
 	virtual void startContainerType(const FuContainerType * container);
@@ -3522,7 +3522,7 @@ private:
 	static bool hasLong(const std::vector<std::shared_ptr<FuExpr>> * args);
 	void writeMathMaxMin(const FuMethod * method, std::string_view name, int op, const std::vector<std::shared_ptr<FuExpr>> * args);
 	void writeBoolAndOrAssign(const FuBinaryExpr * expr, FuPriority parent);
-	void writeIsVar(const FuExpr * expr, std::string_view name, const FuSymbol * klass, FuPriority parent);
+	void writeIsVar(bool switchVar, const FuExpr * expr, std::string_view name, const FuSymbol * klass, FuPriority parent);
 	void writeVarCast(const FuVar * def, const FuExpr * value);
 	void writeMain(const FuMethod * main);
 };

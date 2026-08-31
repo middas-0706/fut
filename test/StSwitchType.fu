@@ -52,10 +52,20 @@ public static class Test
 		return false;
 	}
 
+	static bool IsDynamicCat(Animal#? a)
+	{
+		switch (a == null ? null : a) {
+		case Cat# c:
+			return c.Name == "Simba";
+		default:
+			return false;
+		}
+	}
+
 	public static bool Run()
 	{
 		Lion() l;
 		l.Name = "Simba";
-		return IsCat(l);
+		return IsCat(l) && IsDynamicCat(new Cat { Name = "Simba" });
 	}
 }

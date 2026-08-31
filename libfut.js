@@ -10286,27 +10286,27 @@ export class GenBase extends FuVisitor
 		value.accept(this, FuPriority.EQUALITY);
 	}
 
-	writeExprOrSwitchValue(expr, parent)
+	writeExprOrSwitchValue(switchVar, expr, parent)
 	{
-		if (expr == null)
+		if (switchVar)
 			this.write("fuSwitchValue");
 		else
 			expr.accept(this, parent);
 	}
 
-	writeSwitchCaseCond(switchValue, value, parent)
+	writeSwitchCaseCond(switchVar, switchValue, value, parent)
 	{
 		let when1;
 		if ((when1 = value) instanceof FuBinaryExpr && when1.op == FuToken.WHEN) {
 			if (parent > FuPriority.SELECT_COND)
 				this.writeChar(40);
-			this.writeSwitchCaseCond(switchValue, when1.left, FuPriority.COND_AND);
+			this.writeSwitchCaseCond(switchVar, switchValue, when1.left, FuPriority.COND_AND);
 			this.write(" && ");
 			when1.right.accept(this, FuPriority.COND_AND);
 			if (parent > FuPriority.SELECT_COND)
 				this.writeChar(41);
 		}
-		else if (switchValue == null)
+		else if (switchVar)
 			this.writeSwitchVarCaseCond(value);
 		else
 			this.writeEqual(switchValue, value, parent, false);
@@ -10337,12 +10337,11 @@ export class GenBase extends FuVisitor
 
 	writeSwitchAsIfs(statement, doWhile)
 	{
-		let switchValue = statement.value;
-		if (this.needsSwitchVar(switchValue)) {
+		let switchVar = this.needsSwitchVar(statement.value);
+		if (switchVar) {
 			this.openBlock();
-			this.writeSwitchVar(switchValue);
+			this.writeSwitchVar(statement.value);
 			this.writeCharLine(59);
-			switchValue = null;
 		}
 		for (const kase of statement.cases) {
 			for (const value of kase.values) {
@@ -10360,7 +10359,7 @@ export class GenBase extends FuVisitor
 			let parent = kase.values.length == 1 ? FuPriority.ARGUMENT : FuPriority.COND_OR;
 			for (const value of kase.values) {
 				this.write(op);
-				this.writeSwitchCaseCond(switchValue, value, parent);
+				this.writeSwitchCaseCond(switchVar, statement.value, value, parent);
 				op = " || ";
 			}
 			this.writeChar(41);
@@ -10371,7 +10370,7 @@ export class GenBase extends FuVisitor
 			this.write("else");
 			this.writeIfCaseBody(statement.defaultBody, doWhile, statement, null);
 		}
-		if (switchValue == null)
+		if (switchVar)
 			this.closeBlock();
 	}
 
@@ -17442,19 +17441,19 @@ export class GenCpp extends GenCCpp
 		}
 	}
 
-	#writeGtRawPtr(expr)
+	#writeGtRawPtr(switchVar, expr)
 	{
 		this.write(">(");
-		if (expr == null)
-			this.write("fuSwitchValue");
-		else if (GenCpp.#isSharedPtr(expr))
-			this.writePostfix(expr, ".get()");
+		if (GenCpp.#isSharedPtr(expr)) {
+			this.writeExprOrSwitchValue(switchVar, expr, FuPriority.PRIMARY);
+			this.write(".get()");
+		}
 		else
-			expr.accept(this, FuPriority.ARGUMENT);
+			this.writeExprOrSwitchValue(switchVar, expr, FuPriority.ARGUMENT);
 		this.writeChar(41);
 	}
 
-	#writeIsVar(expr, def, parent)
+	#writeIsVar(switchVar, expr, def, parent)
 	{
 		if (parent > FuPriority.ASSIGN)
 			this.writeChar(40);
@@ -17464,12 +17463,14 @@ export class GenCpp extends GenCCpp
 		if ((dynamic = def.type) instanceof FuDynamicPtrType) {
 			this.write("std::dynamic_pointer_cast<");
 			this.write(dynamic.class.name);
-			this.writeCall(">", expr);
+			this.write(">(");
+			this.writeExprOrSwitchValue(switchVar, expr, FuPriority.ARGUMENT);
+			this.writeChar(41);
 		}
 		else {
 			this.write("dynamic_cast<");
 			this.writeType(def.type, true);
-			this.#writeGtRawPtr(expr);
+			this.#writeGtRawPtr(switchVar, expr);
 		}
 		if (parent > FuPriority.ASSIGN)
 			this.writeChar(41);
@@ -17516,12 +17517,12 @@ export class GenCpp extends GenCCpp
 				this.write("dynamic_cast<const ");
 				this.write(symbol.symbol.name);
 				this.write(" *");
-				this.#writeGtRawPtr(expr.left);
+				this.#writeGtRawPtr(false, expr.left);
 				return;
 			}
 			else if (expr.right instanceof FuVar) {
 				const def = expr.right;
-				this.#writeIsVar(expr.left, def, parent);
+				this.#writeIsVar(false, expr.left, def, parent);
 				return;
 			}
 			else
@@ -17715,32 +17716,27 @@ export class GenCpp extends GenCCpp
 			expr.accept(this, FuPriority.ARGUMENT);
 			this.writeChar(125);
 		}
-		else if (GenCpp.#isSharedPtr(expr)) {
-			this.#writeClassType(expr.type.asClassType());
-			this.write(" *fuSwitchValue = ");
-			this.writePostfix(expr, ".get()");
-		}
 		else
 			super.writeSwitchVar(expr);
 	}
 
-	writeSwitchCaseCond(switchValue, value, parent)
+	writeSwitchCaseCond(switchVar, switchValue, value, parent)
 	{
 		let symbol;
 		if ((symbol = value) instanceof FuSymbolReference && symbol.symbol instanceof FuClass) {
 			this.write("dynamic_cast<const ");
 			this.write(symbol.symbol.name);
 			this.write(" *");
-			this.#writeGtRawPtr(switchValue);
+			this.#writeGtRawPtr(switchVar, switchValue);
 		}
 		else if (value instanceof FuVar) {
 			const def = value;
 			if (parent == FuPriority.ARGUMENT)
 				this.writeType(def.type, true);
-			this.#writeIsVar(switchValue, def, parent);
+			this.#writeIsVar(switchVar, switchValue, def, parent);
 		}
 		else
-			super.writeSwitchCaseCond(switchValue, value, parent);
+			super.writeSwitchCaseCond(switchVar, switchValue, value, parent);
 	}
 
 	static #isIsVar(expr)
@@ -20749,7 +20745,7 @@ export class GenD extends GenCCppD
 		super.writeAssign(expr, parent);
 	}
 
-	#writeIsVar(left, right, parent)
+	#writeIsVar(switchVar, left, right, parent)
 	{
 		if (parent > FuPriority.EQUALITY)
 			this.writeChar(40);
@@ -20759,7 +20755,7 @@ export class GenD extends GenCCppD
 			this.write("cast(");
 			this.write(klass.name);
 			this.write(") ");
-			this.writeExprOrSwitchValue(left, FuPriority.PRIMARY);
+			this.writeExprOrSwitchValue(switchVar, left, FuPriority.PRIMARY);
 		}
 		else if (right instanceof FuVar) {
 			const def = right;
@@ -20768,7 +20764,7 @@ export class GenD extends GenCCppD
 			this.write(" = cast(");
 			this.write(def.type.name);
 			this.write(") ");
-			this.writeExprOrSwitchValue(left, FuPriority.PRIMARY);
+			this.writeExprOrSwitchValue(switchVar, left, FuPriority.PRIMARY);
 			this.writeChar(41);
 		}
 		else
@@ -20782,7 +20778,7 @@ export class GenD extends GenCCppD
 	{
 		switch (expr.op) {
 		case FuToken.IS:
-			this.#writeIsVar(expr.left, expr.right, parent >= FuPriority.OR && parent <= FuPriority.MUL ? FuPriority.PRIMARY : parent);
+			this.#writeIsVar(false, expr.left, expr.right, parent >= FuPriority.OR && parent <= FuPriority.MUL ? FuPriority.PRIMARY : parent);
 			return;
 		case FuToken.PLUS:
 			if (expr.type.id == FuId.STRING_STORAGE_TYPE) {
@@ -20875,15 +20871,15 @@ export class GenD extends GenCCppD
 		this.defineVar(value);
 	}
 
-	writeSwitchCaseCond(switchValue, value, parent)
+	writeSwitchCaseCond(switchVar, switchValue, value, parent)
 	{
 		let symbol;
 		if ((symbol = value) instanceof FuSymbolReference && symbol.symbol instanceof FuClass)
-			this.#writeIsVar(switchValue, value, parent);
+			this.#writeIsVar(switchVar, switchValue, value, parent);
 		else if (value instanceof FuVar)
-			this.#writeIsVar(switchValue, value, parent);
+			this.#writeIsVar(switchVar, switchValue, value, parent);
 		else
-			super.writeSwitchCaseCond(switchValue, value, parent);
+			super.writeSwitchCaseCond(switchVar, switchValue, value, parent);
 	}
 
 	visitSwitch(statement)
@@ -23792,7 +23788,7 @@ export class GenJsNoModule extends GenBase
 		expr.left.accept(this, FuPriority.ASSIGN);
 	}
 
-	#writeIsVar(expr, name, klass, parent)
+	#writeIsVar(switchVar, expr, name, klass, parent)
 	{
 		if (parent > FuPriority.REL)
 			this.writeChar(40);
@@ -23800,11 +23796,11 @@ export class GenJsNoModule extends GenBase
 			this.writeChar(40);
 			this.#writeCamelCaseNotKeyword(name);
 			this.write(" = ");
-			this.writeExprOrSwitchValue(expr, FuPriority.ARGUMENT);
+			this.writeExprOrSwitchValue(switchVar, expr, FuPriority.ARGUMENT);
 			this.writeChar(41);
 		}
 		else
-			this.writeExprOrSwitchValue(expr, FuPriority.REL);
+			this.writeExprOrSwitchValue(switchVar, expr, FuPriority.REL);
 		this.write(" instanceof ");
 		this.write(klass.name);
 		if (parent > FuPriority.REL)
@@ -23856,7 +23852,7 @@ export class GenJsNoModule extends GenBase
 			this.writeEqual(expr.left, expr.right, FuPriority.ARGUMENT, true);
 		}
 		else if (expr.op == FuToken.IS && (def = expr.right) instanceof FuVar)
-			this.#writeIsVar(expr.left, def.name, def.type, parent);
+			this.#writeIsVar(false, expr.left, def.name, def.type, parent);
 		else
 			super.visitBinaryExpr(expr, parent);
 	}
@@ -24008,17 +24004,17 @@ export class GenJsNoModule extends GenBase
 		expr.accept(this, FuPriority.ARGUMENT);
 	}
 
-	writeSwitchCaseCond(switchValue, value, parent)
+	writeSwitchCaseCond(switchVar, switchValue, value, parent)
 	{
 		let symbol;
 		if ((symbol = value) instanceof FuSymbolReference && symbol.symbol instanceof FuClass)
-			this.#writeIsVar(switchValue, null, symbol.symbol, parent);
+			this.#writeIsVar(switchVar, switchValue, null, symbol.symbol, parent);
 		else if (value instanceof FuVar) {
 			const def = value;
-			this.#writeIsVar(switchValue, parent == FuPriority.COND_AND ? def.name : null, def.type, parent);
+			this.#writeIsVar(switchVar, switchValue, parent == FuPriority.COND_AND ? def.name : null, def.type, parent);
 		}
 		else
-			super.writeSwitchCaseCond(switchValue, value, parent);
+			super.writeSwitchCaseCond(switchVar, switchValue, value, parent);
 	}
 
 	writeIfCaseBody(body, doWhile, statement, kase)

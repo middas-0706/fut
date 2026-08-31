@@ -1994,26 +1994,26 @@ public abstract class GenBase : FuVisitor
 		value.Accept(this, FuPriority.Equality);
 	}
 
-	protected void WriteExprOrSwitchValue!(FuExpr? expr, FuPriority parent)
+	protected void WriteExprOrSwitchValue!(bool switchVar, FuExpr expr, FuPriority parent)
 	{
-		if (expr == null)
+		if (switchVar)
 			Write("fuSwitchValue");
 		else
 			expr.Accept(this, parent);
 	}
 
-	protected virtual void WriteSwitchCaseCond!(FuExpr? switchValue, FuExpr value, FuPriority parent)
+	protected virtual void WriteSwitchCaseCond!(bool switchVar, FuExpr switchValue, FuExpr value, FuPriority parent)
 	{
 		if (value is FuBinaryExpr when1 && when1.Op == FuToken.When) {
 			if (parent > FuPriority.SelectCond)
 				WriteChar('(');
-			WriteSwitchCaseCond(switchValue, when1.Left, FuPriority.CondAnd);
+			WriteSwitchCaseCond(switchVar, switchValue, when1.Left, FuPriority.CondAnd);
 			Write(" && ");
 			when1.Right.Accept(this, FuPriority.CondAnd);
 			if (parent > FuPriority.SelectCond)
 				WriteChar(')');
 		}
-		else if (switchValue == null)
+		else if (switchVar)
 			WriteSwitchVarCaseCond(value);
 		else
 			WriteEqual(switchValue, value, parent, false);
@@ -2044,12 +2044,11 @@ public abstract class GenBase : FuVisitor
 
 	protected void WriteSwitchAsIfs!(FuSwitch statement, bool doWhile)
 	{
-		FuExpr? switchValue = statement.Value;
-		if (NeedsSwitchVar(switchValue)) {
+		bool switchVar = NeedsSwitchVar(statement.Value);
+		if (switchVar) {
 			OpenBlock();
-			WriteSwitchVar(switchValue);
+			WriteSwitchVar(statement.Value);
 			WriteCharLine(';');
-			switchValue = null;
 		}
 		foreach (FuCase kase in statement.Cases) {
 			foreach (FuExpr value in kase.Values) {
@@ -2066,7 +2065,7 @@ public abstract class GenBase : FuVisitor
 			FuPriority parent = kase.Values.Count == 1 ? FuPriority.Argument : FuPriority.CondOr;
 			foreach (FuExpr value in kase.Values) {
 				Write(op);
-				WriteSwitchCaseCond(switchValue, value, parent);
+				WriteSwitchCaseCond(switchVar, statement.Value, value, parent);
 				op = " || ";
 			}
 			WriteChar(')');
@@ -2077,7 +2076,7 @@ public abstract class GenBase : FuVisitor
 			Write("else");
 			WriteIfCaseBody(statement.DefaultBody, doWhile, statement, null);
 		}
-		if (switchValue == null)
+		if (switchVar)
 			CloseBlock();
 	}
 
