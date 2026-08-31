@@ -3,7 +3,7 @@ public static class Test
 	public static bool Run()
 	{
 		string s = "bar";
-		switch (s.Substring(0)) { //FAIL: c cl TODO
+		switch (s.Substring(0)) {
 		case "foo":
 		case "bar" when s.Length == 42:
 			return false;

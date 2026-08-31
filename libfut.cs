@@ -13828,12 +13828,12 @@ namespace Fusion
 
 		protected override bool NeedsSwitchVar(FuExpr expr)
 		{
-			FuCallExpr? substring = IsStringSubstring(expr);
-			if (substring == null)
-				return base.NeedsSwitchVar(expr);
-			if (substring!.Method.Symbol!.Id == FuId.StringSubstring && !substring!.Method.Left!.IsLocalReference())
-				return false;
-			return !substring!.Arguments.TrueForAll(arg => arg.IsConst(true) || arg.IsLocalReference());
+			if (expr is FuCallExpr substring) {
+				FuId id = substring.Method.Symbol!.Id;
+				if ((id == FuId.StringSubstring && substring.Method.Left!.IsLocalReference()) || id == FuId.UTF8GetString)
+					return !substring.Arguments.TrueForAll(arg => arg.IsConst(true) || arg.IsLocalReference());
+			}
+			return base.NeedsSwitchVar(expr);
 		}
 
 		protected override void WriteSwitchCaseBody(List<FuStatement> statements)

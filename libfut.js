@@ -14403,12 +14403,13 @@ export class GenC extends GenCCpp
 
 	needsSwitchVar(expr)
 	{
-		let substring = GenC.isStringSubstring(expr);
-		if (substring == null)
-			return super.needsSwitchVar(expr);
-		if (substring.method.symbol.id == FuId.STRING_SUBSTRING && !substring.method.left.isLocalReference())
-			return false;
-		return !substring.arguments_.every(arg => arg.isConst(true) || arg.isLocalReference());
+		let substring;
+		if ((substring = expr) instanceof FuCallExpr) {
+			let id = substring.method.symbol.id;
+			if ((id == FuId.STRING_SUBSTRING && substring.method.left.isLocalReference()) || id == FuId.U_T_F8_GET_STRING)
+				return !substring.arguments_.every(arg => arg.isConst(true) || arg.isLocalReference());
+		}
+		return super.needsSwitchVar(expr);
 	}
 
 	writeSwitchCaseBody(statements)

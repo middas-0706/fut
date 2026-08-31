@@ -14378,12 +14378,12 @@ void GenC::visitReturn(const FuReturn * statement)
 
 bool GenC::needsSwitchVar(const FuExpr * expr) const
 {
-	const FuCallExpr * substring = isStringSubstring(expr);
-	if (substring == nullptr)
-		return GenBase::needsSwitchVar(expr);
-	if (substring->method->symbol->id == FuId::stringSubstring && !substring->method->left->isLocalReference())
-		return false;
-	return !std::all_of(substring->arguments.begin(), substring->arguments.end(), [](const std::shared_ptr<FuExpr> &arg) { return arg->isConst(true) || arg->isLocalReference(); });
+	if (const FuCallExpr *substring = dynamic_cast<const FuCallExpr *>(expr)) {
+		FuId id = substring->method->symbol->id;
+		if ((id == FuId::stringSubstring && substring->method->left->isLocalReference()) || id == FuId::uTF8GetString)
+			return !std::all_of(substring->arguments.begin(), substring->arguments.end(), [](const std::shared_ptr<FuExpr> &arg) { return arg->isConst(true) || arg->isLocalReference(); });
+	}
+	return GenBase::needsSwitchVar(expr);
 }
 
 void GenC::writeSwitchCaseBody(const std::vector<std::shared_ptr<FuStatement>> * statements)
